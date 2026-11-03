@@ -25,6 +25,7 @@ dependencies = [
     "pyyaml>=6.0",
     "matplotlib>=3.9",
     "structlog>=24.4",
+    "eqpit",
 ]
 
 [project.optional-dependencies]
@@ -60,6 +61,7 @@ dev = [
 
 [tool.uv.sources]
 overfitlab = { git = "https://github.com/avmhdt/backtest-overfitting-lab" }
+eqpit = { git = "https://github.com/avmhdt/equity-factor-pipeline", subdirectory = "packages/eqpit" }
 
 [tool.ruff]
 line-length = 100
@@ -86,6 +88,7 @@ ignore_missing_imports = true
 minversion = "8.3"
 testpaths = ["tests"]
 addopts = "--strict-markers --import-mode=importlib"
+pythonpath = ["tests"]
 markers = [
     "slow: slower tests, run locally before each milestone exit",
     "data: needs local licensed or downloaded data, never in CI",

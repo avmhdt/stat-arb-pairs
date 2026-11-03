@@ -4,6 +4,7 @@ from datetime import date
 from pathlib import Path
 
 import httpx
+import polars as pl
 import pytest
 
 from statarb.data.providers import edgar, sharadar, stooq
@@ -121,3 +122,39 @@ def test_stooq_rejects_intraday(tmp_path: Path) -> None:
     )
     with pytest.raises(stooq.StooqFormatError, match="daily"):
         stooq.read_daily(path)
+
+
+def test_edgar_company_tickers_and_current_sic(tmp_path: Path) -> None:
+    seen: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request.url.path)
+        if request.url.path.endswith("company_tickers.json"):
+            return httpx.Response(
+                200,
+                json={
+                    "0": {"cik_str": 320193, "ticker": "aapl", "title": "Apple Inc."},
+                    "1": {"cik_str": 789019, "ticker": "MSFT", "title": "Microsoft"},
+                },
+            )
+        cik = int(request.url.path.split("CIK")[1].split(".")[0])
+        return httpx.Response(
+            200, json={"sic": "3571" if cik == 320193 else "", "sicDescription": "x"}
+        )
+
+    target = tmp_path / "sic.parquet"
+    with edgar.EdgarClient(
+        "Test User test@example.com", httpx.MockTransport(handler), rate=1000
+    ) as client:
+        tickers = edgar.company_tickers(client)
+        assert tickers["ticker"].to_list() == ["AAPL", "MSFT"]
+        assert edgar.ingest_current_sic(client, [320193, 789019], target, batch=1) == 2
+        assert edgar.ingest_current_sic(client, [320193, 789019], target) == 0
+    sic = dict(
+        zip(
+            *pl.read_parquet(target).select("cik", "sic").to_dict(as_series=False).values(),
+            strict=True,
+        )
+    )
+    assert sic == {320193: 3571, 789019: None}
+    assert sum(path.startswith("/submissions/") for path in seen) == 2

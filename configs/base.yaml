@@ -1,0 +1,25 @@
+# Shared defaults (spec section 10). Strategy configs extend this file.
+run:
+  name: base
+  strategy_family: pairs_coint
+  data_profile: headline
+  seed: 20261030
+data:
+  provider: sharadar
+  start: 1998-01-02
+  end: 2025-12-31
+  calendar: XNYS
+universe:
+  security_types: [common]
+  exchanges: [NYSE, AMEX, NASDAQ]
+  rank_by: mktcap_usd
+  top_n: 1000
+  min_price_usd: 5.0
+  min_traded_frac: 0.95
+  require_full_history: false
+  survivors_only: false
+windows:
+  formation_months: 12
+  trading_months: 6
+  step_months: 1
+  execution_lag_days: 1
