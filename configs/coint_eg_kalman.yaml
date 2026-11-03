@@ -1,5 +1,4 @@
 # Cointegration pairs: Engle-Granger with FDR control within SIC2 groups (FR-09 to FR-11, D-05, D-06).
-# Hedge, rules, sizing and cost sections arrive with the trading engine in M4.
 extends: base.yaml
 run:
   name: coint_eg_kalman_sic2
@@ -25,3 +24,27 @@ selection:
   johansen_confirm: {enabled: true, det_order: 0, max_k_ar_diff: 5, level: 0.95}
   fdr: {primary: bh, also_report: [by], q: 0.05}
   half_life_days: {min: 1, max: 63}
+model:
+  hedge: kalman
+  kalman: {delta: 1.0e-4, obs_var: formation_ols}
+rules:
+  entry_z: 2.0
+  exit_mode: cross_zero
+  exit_z: 0.5
+  stop_z: 4.0
+  time_stop_half_lives: 3.0
+  break_policy: stop_only
+  break_window_days: 60
+  break_pvalue: 0.20
+sizing:
+  scheme: equal_gross
+  gross_per_pair: 1.0
+costs:
+  commission_bps: 1.0
+  half_spread: {model: quotes_then_corwin_schultz, floor_bps: 2.0}
+  borrow: {source: assumed, schedule: configs/borrow_schedule.yaml, multiplier: 1.0}
+  impact: {model: sqrt, y_coeff: 1.0, adv_window_days: 20, max_participation: 0.10}
+  aum_usd: 10000000
+output:
+  dir: results/runs
+  save_trades: true
