@@ -332,3 +332,37 @@ def _config_from_params(path: Path) -> RunConfig:
     params.pop("data_profile", None)
     params.pop("manifest_hash", None)
     return RunConfig.model_validate(params)
+
+
+@evaluate_app.command("al-comparison")
+def evaluate_al_comparison(
+    runs: Annotated[
+        str, typer.Option("--runs", help="Comma-separated run ids: A-L and pairs runs.")
+    ],
+    out_dir: Annotated[Path, typer.Option("--out")] = Path("results/tables"),
+    figure_path: Annotated[Path, typer.Option("--figure")] = Path("reports/figures/al_vs_pairs"),
+) -> None:
+    """Avellaneda-Lee against simple pairs (FR-18, FR-19, AC-H-03)."""
+    import polars as pl
+
+    from statarb.evaluation import comparison
+
+    settings = get_settings()
+    loaded = [
+        comparison.read_run(settings.results_dir / "runs", rid.strip())
+        for rid in runs.split(",")
+        if rid.strip()
+    ]
+    out_dir.mkdir(parents=True, exist_ok=True)
+    summary = comparison.summary(loaded)
+    summary.write_csv(out_dir / "al_vs_pairs.csv", float_precision=6)
+    yearly = comparison.by_year(loaded)
+    yearly.write_csv(out_dir / "al_vs_pairs_by_year.csv", float_precision=6)
+    comparison.differences(loaded).write_csv(
+        out_dir / "al_vs_pairs_sharpe_diff.csv", float_precision=6
+    )
+    comparison.against_paper(loaded, pl.read_csv(comparison.TARGETS)).write_csv(
+        out_dir / "al_vs_paper.csv", float_precision=6
+    )
+    comparison.figure(yearly, figure_path)
+    typer.echo(f"wrote al_vs_pairs*.csv and al_vs_paper.csv to {out_dir.as_posix()}")

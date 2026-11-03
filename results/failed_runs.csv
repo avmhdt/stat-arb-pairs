@@ -1,0 +1,17 @@
+run_id,timestamp,strategy_family,error
+e9b8da40-f855-4f7e-a4b5-dded02baa925,2026-11-03T21:07:24Z,al_pca,"BrokenProcessPool: A process in the process pool was terminated abruptly while the future was running or pending.
+Traceback (most recent call last):
+  File ""D:\trading-strategy-brainstorm\stat-arb-pairs\src\statarb\trading\backtest.py"", line 161, in run_backtest
+    pairs, returns, trades, count = _simulate(
+                                    ^^^^^^^^^^
+  File ""D:\trading-strategy-brainstorm\stat-arb-pairs\src\statarb\trading\backtest.py"", line 137, in _simulate
+    parts = list(pool.map(_window, windows, [run_id] * len(windows)))
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File ""C:\Users\joses\AppData\Local\Programs\Python\Python312\Lib\concurrent\futures\process.py"", line 636, in _chain_from_iterable_of_lists
+    for element in iterable:
+                   ^^^^^^^^
+concurrent.futures.process.BrokenProcessPool: A process in the process pool was terminated abruptly while the future was running or pending.
+"
+31368af6-1a50-44db-b4b3-6ca742c6a405,2026-11-03T21:21:40Z,al_etf,"aborted: stopped by the operator after machine memory ran out (6 workers); sweep configs/grids/al_costs.yaml: costs.commission_bps=0.0, costs.half_spread.model=flat, costs.half_spread.flat_bps=5.0, costs.impact.model=none, costs.borrow.multiplier=0.0"
+73294771-5c80-4425-9ded-1ced3e3d6853,2026-11-03T21:21:40Z,al_pca,"aborted: stopped by the operator after machine memory ran out (6 workers); sweep configs/grids/al_same_day.yaml: costs.commission_bps=0.0, costs.half_spread.model=flat, costs.half_spread.flat_bps=5.0, costs.impact.model=none, costs.borrow.multiplier=0.0, windows.execution_lag_days=0"
+c7e5356a-cbb5-4e2f-a8aa-652170aa5bae,2026-11-03T21:21:40Z,al_etf,"aborted: stopped by the operator after machine memory ran out (6 workers); sweep configs/grids/al_same_day.yaml: costs.commission_bps=0.0, costs.half_spread.model=flat, costs.half_spread.flat_bps=5.0, costs.impact.model=none, costs.borrow.multiplier=0.0, windows.execution_lag_days=0"

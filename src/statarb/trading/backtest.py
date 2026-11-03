@@ -27,6 +27,7 @@ from statarb.evaluation.metrics import summary_metrics, trade_stats
 from statarb.industry import SicEtfMap, load_sic_etf_map
 from statarb.tracking import log_failed, log_trial
 from statarb.trading.engine import borrow_schedule, combine, freeze, run_window
+from statarb.trading.residual import freeze_al, run_al_window
 from statarb.windows import FormationView, TradingView, Window, rolling_windows
 
 log = structlog.get_logger(__name__)
@@ -68,8 +69,22 @@ class RunResult:
 def load_for(cfg: RunConfig, processed: Path) -> MarketData:
     """The processed panel a run needs."""
     return load_market_data(
-        processed, cfg.data.start, cfg.data.end, PRICE_COLUMNS, tuple(cfg.universe.security_types)
+        processed,
+        cfg.data.start,
+        cfg.data.end,
+        PRICE_COLUMNS,
+        tuple(cfg.universe.security_types),
+        ever_min_mktcap_usd=min_mktcap(cfg),
     )
+
+
+def min_mktcap(cfg: RunConfig) -> float | None:
+    """The run's market-cap floor, if any: the universe's, or A-L's for the A-L families."""
+    floors = [cfg.universe.min_mktcap_usd]
+    if cfg.run.strategy_family in ("al_pca", "al_etf"):
+        floors.append(cfg.al.universe_min_mktcap_usd)
+    known = [value for value in floors if value is not None]
+    return max(known) if known else None
 
 
 def _context(cfg: RunConfig, data: MarketData) -> None:
@@ -88,7 +103,12 @@ def _window(window: Window, run_id: str) -> tuple[pl.DataFrame, pl.DataFrame, pl
     cfg: RunConfig = _STATE["cfg"]
     data: MarketData = _STATE["data"]
     sic: SicEtfMap | None = _STATE["sic"]
-    frozen = freeze(FormationView(data, window, cfg.universe), cfg, _STATE["borrow"], sic, run_id)
+    view = FormationView(data, window, cfg.universe)
+    if cfg.run.strategy_family in ("al_pca", "al_etf"):
+        frozen_al = freeze_al(view, cfg, _STATE["borrow"], sic, run_id)
+        result = run_al_window(frozen_al, TradingView(data, window), cfg, run_id)
+        return frozen_al.pairset.tested, result.daily, result.trades
+    frozen = freeze(view, cfg, _STATE["borrow"], sic, run_id)
     result = run_window(frozen, TradingView(data, window), cfg, run_id)
     return frozen.pairset.tested, result.daily, result.trades
 

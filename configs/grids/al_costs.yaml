@@ -1,0 +1,4 @@
+# AC-H-03: A-L's flat 5 bp per side (no borrow, as in the paper) and this project's cost model.
+members:
+  - {costs.commission_bps: 0.0, costs.half_spread.model: flat, costs.half_spread.flat_bps: 5.0, costs.impact.model: none, costs.borrow.multiplier: 0.0}
+  - {costs.commission_bps: 1.0, costs.half_spread.model: quotes_then_corwin_schultz, costs.impact.model: sqrt, costs.borrow.multiplier: 1.0}

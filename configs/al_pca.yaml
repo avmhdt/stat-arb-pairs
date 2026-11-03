@@ -1,0 +1,36 @@
+# Avellaneda-Lee (2010) PCA residuals: 15 eigenportfolios of the 252-day correlation matrix,
+# 60-day residual regressions, OU s-scores with centred means, re-estimated daily (FR-18).
+# Universe: market cap at least USD 1bn at each window's T. Twelve-month trading windows, so the
+# universe refreshes yearly. New positions get 2 / max(20-day average open per side, 100).
+extends: base.yaml
+run:
+  name: al_pca_15
+  strategy_family: al_pca
+  data_profile: headline
+  seed: 20261030
+universe:
+  security_types: [common]
+  rank_by: mktcap_usd
+  top_n: null
+  min_price_usd: 5.0
+  min_mktcap_usd: 1.0e9
+windows:
+  formation_months: 12
+  trading_months: 12
+  step_months: 12
+  execution_lag_days: 1
+al:
+  factors: pca
+  corr_window_days: 252
+  n_factors: 15
+  resid_window_days: 60
+  kappa_min: 8.4
+  s_open: 1.25
+  s_close_short: 0.75
+  s_close_long: 0.50
+  universe_min_mktcap_usd: 1.0e9
+  rebalance: daily
+  center_means: true
+  gross_per_side: 2.0
+  min_positions_per_side: 100
+  hedge_etf: SPY

@@ -1,0 +1,5 @@
+strategy,period_start,period_end,sharpe,source,confirmed,note
+al_pca,1997-01-01,2007-12-31,1.44,"Avellaneda and Lee working paper, version 15 June 2009, abstract (p. 1)",true,"15 PCA factors, after 5 bp per side"
+al_pca,2003-01-01,2007-12-31,0.9,"Avellaneda and Lee working paper, version 15 June 2009, abstract (p. 1)",true,"15 PCA factors"
+al_etf,2003-01-01,2007-12-31,0.6,"Avellaneda and Lee working paper, version 15 June 2009, text below Table 5 (p. 26)",true,"actual sector ETFs"
+al_etf,1997-01-01,2007-12-31,1.1,"Avellaneda and Lee working paper, version 15 June 2009, abstract (p. 1)",true,"synthetic sector indices before 2002, actual ETFs after; this repo uses SPDR ETFs with fallbacks"

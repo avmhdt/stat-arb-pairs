@@ -1,0 +1,7 @@
+# AC-H-03: simple pairs on the A-L universe (market cap at least USD 1bn), dates and costs.
+data.end: [2025-12-31]
+universe.min_mktcap_usd: [1.0e9]
+universe.top_n: [null]
+members:
+  - {costs.commission_bps: 0.0, costs.half_spread.model: flat, costs.half_spread.flat_bps: 5.0, costs.impact.model: none, costs.borrow.multiplier: 0.0}
+  - {costs.commission_bps: 1.0, costs.half_spread.model: quotes_then_corwin_schultz, costs.impact.model: sqrt, costs.borrow.multiplier: 1.0}
