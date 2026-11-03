@@ -98,3 +98,36 @@ def test_perturbations_change_the_future(market: SynthMarket, how: str) -> None:
 def test_unknown_perturbation(market: SynthMarket) -> None:
     with pytest.raises(ValueError, match="unknown"):
         perturb(market.data, _windows(market)[0], "bogus", 0)
+
+
+def _frozen(pairs: object) -> tuple[object, ...]:
+    from statarb.selection.pairs import PairSet
+
+    assert isinstance(pairs, PairSet)
+    tested = pairs.tested.drop("run_id")
+    return (pairs.pairs, tuple(tested.columns), tuple(map(tuple, tested.rows())))
+
+
+def distance_family(view: FormationView) -> tuple[object, ...]:
+    """pairs_distance selection exactly as M3 runs it."""
+    from statarb.selection.distance import select_distance
+
+    return _frozen(select_distance(view, top_k=5, store_top=20, run_id="x"))
+
+
+def coint_family(view: FormationView) -> tuple[object, ...]:
+    """pairs_coint selection: EG both orderings, BH and BY, half-life, Johansen."""
+    from statarb.config import SelectionConfig
+    from statarb.selection.select import select_window
+
+    return _frozen(select_window(view, SelectionConfig(top_k=5), run_id="x"))
+
+
+@pytest.mark.parametrize(
+    "family", [distance_family, coint_family], ids=["pairs_distance", "pairs_coint"]
+)
+def test_pairs_selection_is_unchanged_by_trading_data(market: SynthMarket, family) -> None:  # type: ignore[no-untyped-def]
+    universe = UniverseConfig(top_n=None, min_price_usd=None)
+    assert check_no_lookahead(family, market.data, _windows(market), universe) == 3 * len(
+        PERTURBATIONS
+    )

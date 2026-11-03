@@ -20,7 +20,7 @@ from statarb.data.market import MarketData
 N_STOCKS = 60
 N_PAIRS = 10
 SIC2_GROUPS = (28, 35, 36, 49, 60, 73)
-HALF_LIVES = (5.0, 8.0, 10.0, 12.0, 15.0, 18.0, 20.0, 25.0, 30.0, 40.0)
+HALF_LIVES = (1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5, 2.75, 3.0, 3.25)
 BETAS = (0.6, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 0.7, 1.5)
 ETFS = {"SPY": None, "XLB": 28, "XLI": 35, "XLK": 73}
 

@@ -172,3 +172,49 @@ def dq_check(
     typer.echo(f"dq: {len(failures)} hard failures; report {report.as_posix()}")
     if failures:
         raise typer.Exit(code=1)
+
+
+@app.command()
+def select(
+    config: Annotated[Path, typer.Option("--config", help="Run config YAML.")],
+    window: Annotated[
+        list[str] | None, typer.Option("--window", help="Only this window (T, ISO date).")
+    ] = None,
+    workers: Annotated[int, typer.Option("--workers", min=1, max=8)] = 1,
+    overrides: Annotated[
+        list[str] | None, typer.Option("--set", help="key=value override.")
+    ] = None,
+) -> None:
+    """Select pairs for every window; writes pairs.parquet only (FR-08 to FR-11)."""
+    from statarb.config import load_config
+    from statarb.selection.runner import run_selection
+
+    settings = get_settings()
+    cfg = load_config(config, overrides or [])
+    try:
+        result = run_selection(
+            cfg, settings.data_dir / "processed", settings.results_dir / "runs", window, workers
+        )
+    except (FileNotFoundError, ValueError) as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(code=2) from error
+    typer.echo(f"{result.windows} windows, {result.rows:,} pair rows -> {result.path.as_posix()}")
+
+
+@app.command()
+def report(
+    profile: Annotated[Literal["headline", "prototype"], typer.Option("--profile")] = "headline",
+    doc: Annotated[Path, typer.Option("--doc")] = Path("docs/multiple_testing.md"),
+) -> None:
+    """Regenerate the aggregate tables and generated doc blocks from results/ (FR-29, FR-30)."""
+    from statarb.reports.tables import write_fdr_outputs
+
+    settings = get_settings()
+    try:
+        table = write_fdr_outputs(
+            settings.results_dir / "runs", settings.results_dir / "tables", doc, profile
+        )
+    except (FileNotFoundError, ValueError) as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(code=2) from error
+    typer.echo(f"fdr_by_window.csv: {table.height} rows; {doc.as_posix()} updated")

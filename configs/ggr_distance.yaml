@@ -1,0 +1,23 @@
+# GGR (2006) distance pairs: every eligible common stock, traded on every formation day,
+# no price floor (DQ-05), top 20 by SSD with each stock in one pair (FR-08, D-06).
+# The trading rules (2 sigma open, close at crossing, one-day wait) arrive in M4.
+extends: base.yaml
+run:
+  name: ggr_distance
+  strategy_family: pairs_distance
+  data_profile: headline
+  seed: 20261030
+universe:
+  security_types: [common]
+  rank_by: mktcap_usd
+  top_n: null
+  min_price_usd: null
+  require_full_history: true
+  survivors_only: false
+selection:
+  method: distance
+  grouping: none
+  max_pairs_per_stock: 1
+  top_k: 20
+  rank_from: 1
+  store_top: 200

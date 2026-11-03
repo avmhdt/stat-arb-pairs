@@ -66,6 +66,53 @@ class WindowsConfig(_Section):
     execution_lag_days: int = Field(default=1, ge=0)
 
 
+class EgConfig(_Section):
+    """Engle-Granger settings (FR-09). Only a constant enters the cointegrating regression."""
+
+    trend: Literal["c"] = "c"
+    autolag: Literal["aic", "bic"] | None = "aic"
+    maxlag: int | None = Field(default=None, ge=0)
+
+
+class JohansenConfig(_Section):
+    """Johansen confirmation of FDR discoveries (FR-10); statsmodels tabulates 95% here."""
+
+    enabled: bool = True
+    det_order: int = 0
+    max_k_ar_diff: int = Field(default=5, ge=0)
+    level: float = Field(default=0.95, ge=0.95, le=0.95)
+
+
+class FdrConfig(_Section):
+    """FDR procedure and level (D-05)."""
+
+    primary: Literal["bh", "by"] = "bh"
+    also_report: tuple[Literal["bh", "by"], ...] = ("by",)
+    q: float = Field(default=0.05, gt=0.0, lt=1.0)
+
+
+class HalfLifeConfig(_Section):
+    """Half-life filter in sessions (FR-11)."""
+
+    min: float = 1.0
+    max: float = 63.0
+
+
+class SelectionConfig(_Section):
+    """Pair selection (FR-08 to FR-11, D-05, D-06)."""
+
+    method: Literal["distance", "engle_granger"] = "engle_granger"
+    grouping: Literal["none", "sic2", "sic3", "etf_sector"] = "sic2"
+    max_pairs_per_stock: int | None = Field(default=1, ge=1)
+    top_k: int = Field(default=20, ge=1)
+    rank_from: int = Field(default=1, ge=1)
+    store_top: int = Field(default=200, ge=1)
+    eg: EgConfig = EgConfig()
+    johansen_confirm: JohansenConfig = JohansenConfig()
+    fdr: FdrConfig = FdrConfig()
+    half_life_days: HalfLifeConfig = HalfLifeConfig()
+
+
 class RunConfig(_Section):
     """A fully resolved run config."""
 
@@ -73,6 +120,7 @@ class RunConfig(_Section):
     data: DataConfig = DataConfig()
     universe: UniverseConfig = UniverseConfig()
     windows: WindowsConfig = WindowsConfig()
+    selection: SelectionConfig = SelectionConfig()
 
     @model_validator(mode="after")
     def _free_data_is_prototype(self) -> RunConfig:
