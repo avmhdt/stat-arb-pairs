@@ -11,6 +11,7 @@ from typing import Annotated, Literal
 import typer
 
 from statarb import __version__
+from statarb.config import RunConfig
 from statarb.data import build as build_tables
 from statarb.data import dq, pipeline
 from statarb.log import configure_logging
@@ -311,5 +312,23 @@ def evaluate_replication(
     result = replication.verdict(table)
     text = json.dumps(result, indent=2, sort_keys=True)
     out.with_suffix(".json").write_text(text + "\n", encoding="utf-8")
+    if {run.wait for run in loaded} == {"no_wait", "wait_one_day"}:
+        from statarb.trading.backtest import load_for
+
+        cfg = _config_from_params(settings.results_dir / "runs" / loaded[0].run_id / "config.yaml")
+        data = load_for(cfg, settings.data_dir / "processed")
+        bounce = replication.bounce_table(settings.results_dir / "runs", loaded, table, data)
+        bounce.write_csv(out.with_name("ggr_bounce.csv"), float_precision=6)
+        typer.echo(f"bounce table: {out.with_name('ggr_bounce.csv').as_posix()}")
     for key, value in result.items():
         typer.echo(f"{key}: {value}")
+
+
+def _config_from_params(path: Path) -> RunConfig:
+    """A run config from a run's saved params, with the provenance keys dropped."""
+    import yaml
+
+    params = yaml.safe_load(path.read_text(encoding="utf-8"))
+    params.pop("data_profile", None)
+    params.pop("manifest_hash", None)
+    return RunConfig.model_validate(params)

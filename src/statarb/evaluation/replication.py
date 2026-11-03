@@ -9,6 +9,7 @@ Newey-West t-statistics with six lags, as in the paper. Targets come from
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -16,6 +17,8 @@ import numpy as np
 import polars as pl
 import yaml
 
+from statarb.costs import half_spread
+from statarb.data.market import MarketData
 from statarb.evaluation.metrics import monthly, newey_west_mean
 
 TARGETS = Path("tests") / "fixtures" / "ggr2006_targets.csv"
@@ -168,3 +171,78 @@ def figure(table: pl.DataFrame, path: Path) -> None:
     fig.savefig(path.with_suffix(".png"), dpi=300)
     fig.savefig(path.with_suffix(".svg"))
     plt.close(fig)
+
+
+def pair_volatility(runs: Path, run: GgrRun, data: MarketData) -> dict[str, float]:
+    """How volatile a run's traded pairs were in their formation windows.
+
+    Per selected pair: the formation spread sigma (normalised price difference), the mean
+    daily return volatility of its two legs over the formation window, and the legs' mean
+    Corwin-Schultz half-spread over the last 20 formation sessions, a proxy for the bid-ask
+    bounce that waiting a day removes. Also the round trips per pair.
+    """
+    pairs = pl.read_parquet(runs / run.run_id / "pairs.parquet").filter(pl.col("selected"))
+    trades = pl.read_parquet(runs / run.run_id / "trades.parquet")
+    prices = data.prices
+    vols: list[float] = []
+    spreads: list[float] = []
+    for window_id, start, end, leg_y, leg_x in pairs.select(
+        "window_id", "formation_start", "formation_end", "leg_y", "leg_x"
+    ).iter_rows():
+        rows = prices.filter(
+            pl.col("date").is_between(start, end, closed="left")
+            & pl.col("security_id").is_in([leg_y, leg_x])
+        )
+        for _, leg in rows.sort("date").group_by("security_id", maintain_order=True):
+            vols.append(float(leg["ret_total"].drop_nulls().std() or math.nan))  # type: ignore[arg-type]
+            tail = leg.tail(21)
+            spreads.append(
+                half_spread(
+                    tail["high"].to_numpy(),
+                    tail["low"].to_numpy(),
+                    None,
+                    None,
+                    "quotes_then_corwin_schultz",
+                    0.0,
+                )
+            )
+        del window_id
+    entries = trades.filter(pl.col("reason") == "entry").height / 2
+    return {
+        "pairs": float(pairs.height),
+        "spread_sigma_mean": float(pairs["spread_sigma"].mean()),  # type: ignore[arg-type]
+        "leg_daily_vol_mean": float(np.nanmean(vols)) if vols else math.nan,
+        "leg_cs_half_spread_bps_mean": float(np.nanmean(spreads)) * 1e4 if spreads else math.nan,
+        "round_trips_per_pair": entries / max(pairs.height, 1),
+    }
+
+
+def bounce_table(
+    runs: Path, loaded: list[GgrRun], table: pl.DataFrame, data: MarketData
+) -> pl.DataFrame:
+    """Per portfolio: no-wait and wait-one-day means side by side, the drop, and pair volatility.
+
+    GGR read the drop from waiting a day as bid-ask bounce. If more volatile pairs carry more
+    bounce, the drop should be larger for them, in basis points and as a share.
+    """
+    rows = []
+    for portfolio in ("top5", "top20", "101-120"):
+        wait = next(
+            run for run in loaded if run.portfolio == portfolio and run.wait == "wait_one_day"
+        )
+        record: dict[str, object] = {"portfolio": portfolio}
+        for capital in ("fully_invested", "committed"):
+            cells = table.filter(
+                (pl.col("portfolio") == portfolio) & (pl.col("capital") == capital)
+            )
+            no_wait = float(cells.filter(pl.col("wait") == "no_wait")["mean_monthly"][0])
+            waited = float(cells.filter(pl.col("wait") == "wait_one_day")["mean_monthly"][0])
+            record |= {
+                f"{capital}_no_wait": no_wait,
+                f"{capital}_wait_one_day": waited,
+                f"{capital}_drop_bps": (no_wait - waited) * 1e4,
+                f"{capital}_drop_share": (no_wait - waited) / no_wait if no_wait else math.nan,
+            }
+        record |= pair_volatility(runs, wait, data)
+        rows.append(record)
+    return pl.DataFrame(rows)
