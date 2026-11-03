@@ -8,6 +8,7 @@ on the worker count (NFR-03).
 from __future__ import annotations
 
 import json
+import multiprocessing
 import uuid
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass
@@ -104,6 +105,8 @@ def run_selection(
     else:
         with ProcessPoolExecutor(
             max_workers=min(workers, MAX_WORKERS),
+            # Fork after Polars or Numba threads have started can deadlock on Linux.
+            mp_context=multiprocessing.get_context("spawn"),
             initializer=_init,
             initargs=(str(processed), cfg.model_dump_json()),
         ) as pool:
