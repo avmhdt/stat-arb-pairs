@@ -27,7 +27,8 @@ repos:
         name: detect-secrets
         entry: uv run detect-secrets-hook --baseline .secrets.baseline
         language: system
-        exclude: ^uv\.lock$
+        # The lock file's hashes and the benchmark file's commit SHA are not secrets.
+        exclude: ^(uv\.lock|reports/benchmarks\.json)$
       - id: licensed-data-guard
         name: reject data, Parquet and CSV files outside their allowed places
         entry: uv run python scripts/check_tracked.py

@@ -19,3 +19,13 @@ Performance targets (NFR-01, NFR-02) are "meet, or report the actual time with t
 - Data lives on spinning disks, so cold reads are slow. Benchmarks time warm runs and say so; I/O-bound steps are reported separately from compute.
 - The PC also runs live recorders (a crypto capture, a Deribit cron, Tardis downloads). Heavy runs use at most 8 worker processes, and published benchmark numbers state what else was running.
 - Numba is compiled with `fastmath=False` (NFR-03). Benchmarks exclude first-call JIT time and report it separately.
+
+## Recorded results
+
+| Benchmark (NFR-01) | Target | Measured, 2026-11-03 |
+|---|---|---|
+| SSD for 1,000 stocks x 252 days, plus ranking | < 5 s | 0.03 s mean |
+| Engle-Granger on 20,000 pairs, both orderings (40,000 tests), one process | < 60 s for 20,000 | 1.26 s mean |
+| Headline cointegration selection, 319 windows, 6 worker processes | not set | about 3 minutes |
+
+Details in `reports/benchmarks.json` (`uv run pytest -m slow tests/benchmarks --benchmark-json reports/benchmarks.json`).

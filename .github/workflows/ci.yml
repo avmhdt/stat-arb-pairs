@@ -27,7 +27,7 @@ jobs:
       - name: Licensed-data guard (NFR-07)
         run: git ls-files -z | xargs -0 uv run python scripts/check_tracked.py
       - name: Secret scan (NFR-06)
-        run: git ls-files -z | grep -zv '^uv\.lock$' | xargs -0 uv run detect-secrets-hook --baseline .secrets.baseline
+        run: git ls-files -z | grep -zvE '^(uv\.lock|reports/benchmarks\.json)$' | xargs -0 uv run detect-secrets-hook --baseline .secrets.baseline
 
   typecheck:
     runs-on: ubuntu-latest

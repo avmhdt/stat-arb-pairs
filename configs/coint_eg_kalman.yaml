@@ -1,0 +1,27 @@
+# Cointegration pairs: Engle-Granger with FDR control within SIC2 groups (FR-09 to FR-11, D-05, D-06).
+# Hedge, rules, sizing and cost sections arrive with the trading engine in M4.
+extends: base.yaml
+run:
+  name: coint_eg_kalman_sic2
+  strategy_family: pairs_coint
+  data_profile: headline
+  seed: 20261030
+universe:
+  security_types: [common]
+  rank_by: mktcap_usd
+  top_n: 1000
+  min_price_usd: 5.0
+  min_traded_frac: 0.95
+  require_full_history: false
+  survivors_only: false
+selection:
+  method: engle_granger
+  grouping: sic2
+  max_pairs_per_stock: 1
+  top_k: 20
+  eg:
+    trend: c
+    autolag: aic
+  johansen_confirm: {enabled: true, det_order: 0, max_k_ar_diff: 5, level: 0.95}
+  fdr: {primary: bh, also_report: [by], q: 0.05}
+  half_life_days: {min: 1, max: 63}
