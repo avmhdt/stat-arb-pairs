@@ -51,8 +51,8 @@ def _cfg(family: str = "al_pca") -> RunConfig:
         "AC-W-14 asks for a rank correlation >= 0.6 between estimated and true kappa (25/yr "
         "for 30% of names). At A-L's 60-day window it is about 0.23 from PCA residuals; from "
         "the true residuals, with no PCA at all, it is about 0.47 (0.68 at 120 days, 0.79 at "
-        "252), so the 60-day estimate cannot separate kappa = 25 from a random walk. Held for "
-        "the owner's ruling; threshold unchanged."
+        "252), so the 60-day estimate cannot separate kappa = 25 from a random walk. Owner "
+        "ruling 2026-11-03: accepted as a finding; threshold and window unchanged."
     ),
 )
 def test_pca_kappa_recovers_planted_names(market: AlMarket) -> None:
