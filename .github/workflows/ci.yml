@@ -1,0 +1,80 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          enable-cache: true
+          python-version: "3.12"
+      - run: uv sync --frozen
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - name: Licensed-data guard (NFR-07)
+        run: git ls-files -z | xargs -0 uv run python scripts/check_tracked.py
+      - name: Secret scan (NFR-06)
+        run: git ls-files -z | grep -zv '^uv\.lock$' | xargs -0 uv run detect-secrets-hook --baseline .secrets.baseline
+
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          enable-cache: true
+          python-version: "3.12"
+      - run: uv sync --frozen
+      - run: uv run mypy --strict
+
+  test:
+    name: test (${{ matrix.os }}, py${{ matrix.python }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, python: "3.12" }
+          - { os: ubuntu-latest, python: "3.13" }
+          - { os: windows-latest, python: "3.12" }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          enable-cache: true
+          python-version: ${{ matrix.python }}
+      - run: uv sync --frozen
+      - run: uv run pytest -m "not data and not network and not slow" --cov=statarb --cov-report=term --cov-fail-under=85
+
+  trial-log:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          enable-cache: true
+          python-version: "3.12"
+      - run: uv sync --frozen
+      - name: Validate results/trial_log.csv with overfitlab
+        shell: bash
+        run: |
+          if [ ! -f results/trial_log.csv ]; then
+            echo "::notice::results/trial_log.csv does not exist yet; nothing to validate"
+          elif uv run python -c "import overfitlab" 2>/dev/null; then
+            uv run overfitlab trials validate results/trial_log.csv
+          else
+            echo "::notice::overfitlab is not installed; trial log validation skipped"
+          fi

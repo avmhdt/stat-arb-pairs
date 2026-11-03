@@ -40,3 +40,10 @@ Thumbs.db
 
 # Local build spec (kept out of the public repo)
 SPEC.html
+
+# Run logs and per-run outputs (row-level outputs may derive from licensed data)
+logs/
+results/runs/
+# The data/ rule above would also hide these code and test packages (spec section 6)
+!src/statarb/data/
+!tests/data/
