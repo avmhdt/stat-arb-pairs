@@ -29,6 +29,8 @@ ingest_app = typer.Typer(help="Download or copy raw data into the data root.", n
 app.add_typer(ingest_app, name="ingest")
 dq_app = typer.Typer(help="Data-quality checks DQ-01 to DQ-15.", no_args_is_help=True)
 app.add_typer(dq_app, name="dq")
+evaluate_app = typer.Typer(help="Evaluations over finished runs.", no_args_is_help=True)
+app.add_typer(evaluate_app, name="evaluate")
 
 
 @app.callback(invoke_without_command=True)
@@ -218,3 +220,96 @@ def report(
         typer.echo(str(error), err=True)
         raise typer.Exit(code=2) from error
     typer.echo(f"fdr_by_window.csv: {table.height} rows; {doc.as_posix()} updated")
+
+
+def _run_one(config: Path, overrides: list[str], workers: int, note: str = "") -> None:
+    from statarb.config import load_config
+    from statarb.trading.backtest import run_backtest
+
+    settings = get_settings()
+    cfg = load_config(config, overrides)
+    result = run_backtest(
+        cfg,
+        workers,
+        processed=settings.data_dir / "processed",
+        results_dir=settings.results_dir,
+        note=note,
+    )
+    m = result.metrics
+    typer.echo(
+        f"{result.run_id} {cfg.run.strategy_family} {result.data_profile} windows={result.windows} "
+        f"days={result.returns.height} sharpe={m.get('sharpe_annual', float('nan')):.3f} "
+        f"mean={m.get('mean_annual', float('nan')):.4f} "
+        f"pairs/window={m['pairs_traded_per_window']:.2f}"
+    )
+
+
+@app.command()
+def run(
+    config: Annotated[Path, typer.Option("--config", help="Run config YAML.")],
+    overrides: Annotated[
+        list[str] | None, typer.Option("--set", help="key=value override.")
+    ] = None,
+    workers: Annotated[int, typer.Option("--workers", min=1, max=8)] = 1,
+) -> None:
+    """Select, trade and evaluate every window; append one trial-log row (FR-27)."""
+    _run_one(config, overrides or [], workers)
+
+
+@app.command()
+def sweep(
+    config: Annotated[Path, typer.Option("--config", help="Run config YAML.")],
+    grid: Annotated[Path, typer.Option("--grid", help="YAML: key -> list of values.")],
+    workers: Annotated[int, typer.Option("--workers", min=1, max=8)] = 1,
+) -> None:
+    """One run, and one trial-log row, per grid member.
+
+    The grid maps keys to lists of values (their product), and may hold ``members``, a list
+    of override sets, each crossed with that product.
+    """
+    from statarb.config import grid_members
+
+    spec = yaml_load(grid)
+    for overrides in grid_members(spec):
+        note = "sweep " + grid.as_posix() + ": " + ", ".join(overrides)
+        _run_one(config, overrides, workers, note)
+
+
+def yaml_load(path: Path) -> dict[str, object]:
+    """A YAML mapping from ``path``."""
+    import yaml
+
+    loaded = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    if not isinstance(loaded, dict):
+        typer.echo(f"{path} is not a mapping", err=True)
+        raise typer.Exit(code=2)
+    return loaded
+
+
+@evaluate_app.command("replication")
+def evaluate_replication(
+    runs: Annotated[str, typer.Option("--runs", help="Comma-separated run ids of the GGR runs.")],
+    out: Annotated[Path, typer.Option("--out")] = Path("results/tables/ggr_replication.csv"),
+    figure_path: Annotated[Path, typer.Option("--figure")] = Path(
+        "reports/figures/ggr_replication"
+    ),
+) -> None:
+    """GGR (2006) replication table and figure (FR-20, AC-H-01)."""
+    import json
+
+    import polars as pl
+
+    from statarb.evaluation import replication
+
+    settings = get_settings()
+    ids = [rid.strip() for rid in runs.split(",") if rid.strip()]
+    loaded = [replication.read_run(settings.results_dir / "runs", rid) for rid in ids]
+    table = replication.replication_table(loaded, pl.read_csv(replication.TARGETS))
+    out.parent.mkdir(parents=True, exist_ok=True)
+    table.write_csv(out, float_precision=6)
+    replication.figure(table, figure_path)
+    result = replication.verdict(table)
+    text = json.dumps(result, indent=2, sort_keys=True)
+    out.with_suffix(".json").write_text(text + "\n", encoding="utf-8")
+    for key, value in result.items():
+        typer.echo(f"{key}: {value}")

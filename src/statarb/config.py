@@ -7,6 +7,7 @@ a typo never passes silently.
 
 from __future__ import annotations
 
+import itertools
 from datetime import date
 from pathlib import Path
 from typing import Any, Literal
@@ -113,6 +114,83 @@ class SelectionConfig(_Section):
     half_life_days: HalfLifeConfig = HalfLifeConfig()
 
 
+class KalmanConfig(_Section):
+    """Kalman hedge settings (FR-12)."""
+
+    delta: float = Field(default=1.0e-4, gt=0.0, lt=1.0)
+    obs_var: Literal["formation_ols"] = "formation_ols"
+
+
+class ModelConfig(_Section):
+    """Hedge model for cointegration pairs; distance pairs always use normalised prices."""
+
+    hedge: Literal["static", "kalman"] = "kalman"
+    kalman: KalmanConfig = KalmanConfig()
+
+
+class RulesConfig(_Section):
+    """Trading rules (FR-14). ``None`` disables a stop."""
+
+    entry_z: float = Field(default=2.0, gt=0.0)
+    exit_mode: Literal["cross_zero", "band"] = "cross_zero"
+    exit_z: float = Field(default=0.5, ge=0.0)
+    stop_z: float | None = 4.0
+    time_stop_half_lives: float | None = 3.0
+    break_policy: Literal["hold", "stop_only"] = "stop_only"
+    break_window_days: int = 60
+    break_pvalue: float = 0.20
+
+
+class SizingConfig(_Section):
+    """Sizing (FR-15). One pair slot is ``1 / top_k`` of committed capital."""
+
+    scheme: Literal["equal_gross", "inverse_half_life", "vol_target"] = "equal_gross"
+    gross_per_pair: float = Field(default=1.0, gt=0.0)
+
+
+class HalfSpreadConfig(_Section):
+    """Half-spread model (D-08)."""
+
+    model: Literal["quotes_then_corwin_schultz", "flat", "none"] = "quotes_then_corwin_schultz"
+    floor_bps: float = Field(default=2.0, ge=0.0)
+    flat_bps: float = Field(default=0.0, ge=0.0)
+    window_days: int = Field(default=20, ge=2)
+
+
+class BorrowConfig(_Section):
+    """Short-borrow fees (D-07)."""
+
+    source: Literal["assumed"] = "assumed"
+    schedule: str = "configs/borrow_schedule.yaml"
+    multiplier: float = Field(default=1.0, ge=0.0)
+
+
+class ImpactConfig(_Section):
+    """Square-root impact (D-08)."""
+
+    model: Literal["sqrt", "none"] = "sqrt"
+    y_coeff: float = Field(default=1.0, ge=0.0)
+    adv_window_days: int = Field(default=20, ge=1)
+    max_participation: float = Field(default=0.10, gt=0.0)
+
+
+class CostsConfig(_Section):
+    """Costs (FR-16)."""
+
+    commission_bps: float = Field(default=1.0, ge=0.0)
+    half_spread: HalfSpreadConfig = HalfSpreadConfig()
+    borrow: BorrowConfig = BorrowConfig()
+    impact: ImpactConfig = ImpactConfig()
+    aum_usd: float = Field(default=10_000_000.0, gt=0.0)
+
+
+class OutputConfig(_Section):
+    """Run outputs."""
+
+    dir: str = "results/runs"
+    save_trades: bool = True
+
+
 class RunConfig(_Section):
     """A fully resolved run config."""
 
@@ -121,6 +199,11 @@ class RunConfig(_Section):
     universe: UniverseConfig = UniverseConfig()
     windows: WindowsConfig = WindowsConfig()
     selection: SelectionConfig = SelectionConfig()
+    model: ModelConfig = ModelConfig()
+    rules: RulesConfig = RulesConfig()
+    sizing: SizingConfig = SizingConfig()
+    costs: CostsConfig = CostsConfig()
+    output: OutputConfig = OutputConfig()
 
     @model_validator(mode="after")
     def _free_data_is_prototype(self) -> RunConfig:
@@ -170,3 +253,21 @@ def apply_overrides(raw: dict[str, Any], overrides: list[str]) -> dict[str, Any]
 def load_config(path: Path, overrides: list[str] | None = None) -> RunConfig:
     """Read ``path``, resolve ``extends`` and ``--set`` overrides, and validate."""
     return RunConfig.model_validate(apply_overrides(_read(path), overrides or []))
+
+
+def grid_members(spec: dict[str, Any]) -> list[list[str]]:
+    """``--set`` lists for a sweep grid: ``members`` crossed with the product of the rest."""
+    members = spec.get("members") or [{}]
+    keys = sorted(key for key in spec if key != "members")
+    out: list[list[str]] = []
+    for member in members:
+        for values in itertools.product(*(spec[key] for key in keys)):
+            chosen = {**member, **dict(zip(keys, values, strict=True))}
+            out.append([f"{key}={_scalar(value)}" for key, value in chosen.items()])
+    return out
+
+
+def _scalar(value: Any) -> str:
+    """A value as YAML text on one line."""
+    text: str = yaml.safe_dump(value, default_flow_style=True).strip()
+    return text.removesuffix("...").strip()

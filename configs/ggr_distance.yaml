@@ -1,12 +1,16 @@
-# GGR (2006) distance pairs: every eligible common stock, traded on every formation day,
-# no price floor (DQ-05), top 20 by SSD with each stock in one pair (FR-08, D-06).
-# The trading rules (2 sigma open, close at crossing, one-day wait) arrive in M4.
+# GGR (2006) distance pairs on the Sharadar overlap with the paper, 1998 to 2002 (D-03).
+# Every eligible common stock traded on every formation day, no price floor (DQ-05);
+# open at 2 sigma of the formation spread, close at the crossing, no stops; $1 long and
+# $1 short per $1 committed (gross 2 per slot); gross of costs, as the paper reports.
 extends: base.yaml
 run:
   name: ggr_distance
   strategy_family: pairs_distance
   data_profile: headline
   seed: 20261030
+data:
+  start: 1998-01-02
+  end: 2002-12-31
 universe:
   security_types: [common]
   rank_by: mktcap_usd
@@ -21,3 +25,21 @@ selection:
   top_k: 20
   rank_from: 1
   store_top: 200
+windows:
+  formation_months: 12
+  trading_months: 6
+  step_months: 1
+  execution_lag_days: 1
+rules:
+  entry_z: 2.0
+  exit_mode: cross_zero
+  stop_z: null
+  time_stop_half_lives: null
+sizing:
+  scheme: equal_gross
+  gross_per_pair: 2.0
+costs:
+  commission_bps: 0.0
+  half_spread: {model: none}
+  impact: {model: none}
+  borrow: {multiplier: 0.0}

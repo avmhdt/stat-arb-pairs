@@ -131,3 +131,46 @@ def test_pairs_selection_is_unchanged_by_trading_data(market: SynthMarket, famil
     assert check_no_lookahead(family, market.data, _windows(market), universe) == 3 * len(
         PERTURBATIONS
     )
+
+
+def _frozen_family(method: str):  # type: ignore[no-untyped-def]
+    """The whole frozen window: selection, Kalman state through formation, leg cost inputs."""
+    from pathlib import Path
+
+    from statarb.config import RunConfig
+    from statarb.trading.engine import borrow_schedule, freeze
+
+    family = "pairs_distance" if method == "distance" else "pairs_coint"
+    cfg = RunConfig.model_validate(
+        {
+            "run": {"name": "leak", "strategy_family": family, "data_profile": "prototype"},
+            "data": {"provider": "free"},
+            "universe": {"top_n": None, "min_price_usd": None},
+            "selection": {
+                "method": method,
+                "grouping": "none" if method == "distance" else "sic2",
+                "top_k": 5,
+            },
+        }
+    )
+    schedule = borrow_schedule(
+        Path(__file__).resolve().parents[2] / "configs" / "borrow_schedule.yaml"
+    )
+
+    def selector(view: FormationView) -> tuple[object, ...]:
+        frozen = freeze(view, cfg, schedule, run_id="x")
+        tested = frozen.pairset.tested.drop("run_id")
+        return (frozen.pairs, tuple(sorted(frozen.legs.items())), tuple(map(tuple, tested.rows())))
+
+    return selector
+
+
+@pytest.mark.parametrize(
+    "method", ["distance", "engle_granger"], ids=["pairs_distance", "pairs_coint"]
+)
+def test_frozen_window_is_unchanged_by_trading_data(market: SynthMarket, method: str) -> None:
+    universe = UniverseConfig(top_n=None, min_price_usd=None)
+    selector = _frozen_family(method)
+    assert check_no_lookahead(selector, market.data, _windows(market), universe) == 3 * len(
+        PERTURBATIONS
+    )

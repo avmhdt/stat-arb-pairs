@@ -119,6 +119,7 @@ def log_trial(
     returns: Sequence[float],
     periods_per_year: int = 252,
     note: str = "",
+    extra: Mapping[str, Sequence[float | int]] | None = None,
 ) -> str:
     """Write ``runs/<run_id>/returns.parquet`` next to the log, then append its row.
 
@@ -136,6 +137,8 @@ def log_trial(
         ``q`` for the Sharpe ratio; 252 for every family in this repo.
     note
         Optional free text for ``x_note``.
+    extra
+        More columns for the Parquet file, such as ``ret_gross``; readers ignore them.
 
     Returns
     -------
@@ -152,9 +155,15 @@ def log_trial(
     relative = f"runs/{row['run_id']}/returns.parquet"
     target = log_path.parent / relative
     target.parent.mkdir(parents=True, exist_ok=True)
-    table = pa.table(
-        {"date": pa.array(list(dates), pa.date32()), "ret": pa.array(list(returns), pa.float64())}
-    )
+    columns: dict[str, pa.Array] = {
+        "date": pa.array(list(dates), pa.date32()),
+        "ret": pa.array(list(returns), pa.float64()),
+    }
+    for name, values in (extra or {}).items():
+        if len(values) != len(returns):
+            raise TrialLogError(f"extra column {name} has the wrong length")
+        columns[name] = pa.array(list(values))
+    table = pa.table(columns)
     pq.write_table(table, target)
     row |= {
         "start": dates[0].isoformat(),
