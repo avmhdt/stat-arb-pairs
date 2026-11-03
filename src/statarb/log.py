@@ -20,12 +20,15 @@ def configure_logging(level: str = "INFO", path: Path | None = None) -> None:
     path
         Optional ``.jsonl`` file; stderr when omitted, so stdout stays for command output.
     """
-    stream: TextIO
-    if path is None:
-        stream = sys.stderr
-    else:
+    stream: TextIO | None = None
+    if path is not None:
         path.parent.mkdir(parents=True, exist_ok=True)
         stream = path.open("a", encoding="utf-8")
+
+    def factory(*_: object) -> structlog.PrintLogger:
+        # Resolve stderr at use, not at setup: a test runner may swap it out and close it.
+        return structlog.PrintLogger(stream if stream is not None else sys.stderr)
+
     structlog.configure(
         processors=[
             structlog.processors.add_log_level,
@@ -33,6 +36,6 @@ def configure_logging(level: str = "INFO", path: Path | None = None) -> None:
             structlog.processors.JSONRenderer(sort_keys=True),
         ],
         wrapper_class=structlog.make_filtering_bound_logger(logging.getLevelName(level)),
-        logger_factory=structlog.PrintLoggerFactory(stream),
+        logger_factory=factory,
         cache_logger_on_first_use=False,
     )

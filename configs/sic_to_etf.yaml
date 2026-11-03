@@ -1,0 +1,63 @@
+# SIC range -> SPDR Select Sector ETF, used for etf_sector grouping and the Avellaneda-Lee
+# ETF residuals (FR-19). An approximation: SIC is an industry code and GICS sectors are not
+# a function of it. The first matching range wins, so narrow ranges come before wide ones.
+# Before an ETF has 252 sessions of history (DQ-07) its fallback is used instead.
+market: SPY
+fallback:
+  XLC: XLK    # launched 2018-06-19; communications sat in technology and telecom before
+  XLRE: XLF   # launched 2015-10-08; real estate was part of financials until 2016
+  XLB: SPY
+  XLE: SPY
+  XLF: SPY
+  XLI: SPY
+  XLK: SPY
+  XLP: SPY
+  XLU: SPY
+  XLV: SPY
+  XLY: SPY
+ranges:
+  - [100, 999, XLP]      # agriculture, forestry, fishing
+  - [1000, 1099, XLB]    # metal mining
+  - [1200, 1399, XLE]    # coal, oil and gas extraction and services
+  - [1400, 1499, XLB]    # nonmetallic minerals
+  - [1500, 1799, XLI]    # construction
+  - [2000, 2199, XLP]    # food, beverages, tobacco
+  - [2200, 2399, XLY]    # textiles, apparel
+  - [2400, 2499, XLB]    # lumber and wood
+  - [2500, 2599, XLY]    # furniture
+  - [2600, 2699, XLB]    # paper
+  - [2700, 2799, XLC]    # printing and publishing
+  - [2830, 2836, XLV]    # drugs
+  - [2840, 2844, XLP]    # soaps, cosmetics
+  - [2800, 2899, XLB]    # other chemicals
+  - [2900, 2999, XLE]    # petroleum refining
+  - [3000, 3099, XLB]    # rubber and plastics
+  - [3100, 3199, XLY]    # leather
+  - [3200, 3399, XLB]    # stone, glass, primary metals
+  - [3400, 3499, XLI]    # fabricated metal
+  - [3570, 3579, XLK]    # computers and office equipment
+  - [3500, 3599, XLI]    # other machinery
+  - [3600, 3699, XLK]    # electronic and electrical equipment, semiconductors
+  - [3710, 3716, XLY]    # motor vehicles
+  - [3700, 3799, XLI]    # aircraft, ships, rail and other transport equipment
+  - [3840, 3851, XLV]    # medical instruments and supplies
+  - [3800, 3899, XLK]    # other instruments
+  - [3900, 3999, XLY]    # miscellaneous manufacturing
+  - [4000, 4799, XLI]    # transportation
+  - [4800, 4899, XLC]    # communications
+  - [4900, 4999, XLU]    # utilities
+  - [5120, 5122, XLV]    # drug wholesale
+  - [5000, 5199, XLI]    # other wholesale
+  - [5400, 5499, XLP]    # food stores
+  - [5912, 5912, XLP]    # drug stores
+  - [5200, 5999, XLY]    # other retail
+  - [6798, 6798, XLRE]   # REITs
+  - [6500, 6599, XLRE]   # real estate
+  - [6000, 6799, XLF]    # banks, brokers, insurance, holding companies
+  - [7370, 7379, XLK]    # computer services and software
+  - [7800, 7899, XLC]    # motion pictures
+  - [7000, 7099, XLY]    # hotels
+  - [7900, 7999, XLY]    # amusement and recreation
+  - [7000, 7999, XLI]    # other business services
+  - [8000, 8099, XLV]    # health services
+  - [8000, 8999, XLI]    # other services

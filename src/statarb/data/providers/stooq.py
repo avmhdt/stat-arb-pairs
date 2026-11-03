@@ -12,6 +12,8 @@ from pathlib import Path
 
 import polars as pl
 
+from statarb.data.manifest import publish
+
 SNAPSHOT_DATE = date(2026, 10, 30)
 US_DAILY = Path("d_us_txt") / "data" / "daily" / "us"
 HEADER = ("<TICKER>", "<PER>", "<DATE>", "<TIME>", "<OPEN>", "<HIGH>", "<LOW>", "<CLOSE>", "<VOL>")
@@ -109,3 +111,39 @@ def read_daily(path: Path) -> pl.DataFrame:
         pl.col("<CLOSE>").alias("close"),
         pl.col("<VOL>").alias("volume"),
     )
+
+
+def snapshot_root(raw_root: Path) -> Path:
+    """``raw/stooq/snapshot=<snapshot date>``."""
+    return raw_root / f"snapshot={SNAPSHOT_DATE:%Y%m%d}"
+
+
+def ingest_snapshot(
+    stooq_dir: Path, raw_root: Path, tickers: set[str] | None = None
+) -> tuple[Path, bool]:
+    """Convert the US daily tree once into ``index.parquet`` and ``us_daily.parquet``.
+
+    The source on E: is read once; later runs use the Parquet copy (P-12). Returns the
+    snapshot folder and whether anything was written. ``tickers`` (``SPY.US`` style) limits
+    the copy, for tests and quick prototypes.
+    """
+    target = snapshot_root(raw_root)
+    daily = target / "us_daily.parquet"
+    if daily.exists():
+        return target, False
+    index = build_index(stooq_dir)
+    if tickers is not None:
+        index = index.filter(pl.col("ticker").is_in(sorted(tickers)))
+    frames = []
+    for ticker, path in index.select("ticker", "path").iter_rows():
+        frame = read_daily(stooq_dir / path)
+        if frame.height:
+            frames.append(frame.with_columns(pl.lit(ticker).alias("ticker")))
+    staging = target.with_name(f".staging-{target.name}")
+    staging.mkdir(parents=True, exist_ok=True)
+    index.write_parquet(staging / "index.parquet", compression="zstd")
+    pl.concat(frames, how="vertical").sort("ticker", "date").write_parquet(
+        staging / "us_daily.parquet", compression="zstd"
+    )
+    publish(staging, target)
+    return target, True

@@ -1,0 +1,10 @@
+# Assumed short-borrow fee schedule (D-07). This is an assumption, not data: no historical
+# borrow rates exist for this sample (R-04, DQ-12). Buckets are by market-cap rank at the
+# formation date. Fees accrue daily on short notional at fee_rate_annual / 360 (ACT/360).
+# Sensitivities x0, x2, x4 come from costs.borrow.multiplier in the run config.
+source: assumed
+effective_from: 1990-01-01
+buckets:
+  - {bucket: top500, max_rank: 500, fee_rate_annual: 0.0025}
+  - {bucket: top1000, max_rank: 1000, fee_rate_annual: 0.010}
+  - {bucket: rest, max_rank: null, fee_rate_annual: 0.050}

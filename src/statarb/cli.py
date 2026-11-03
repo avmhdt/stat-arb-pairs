@@ -3,11 +3,16 @@
 from __future__ import annotations
 
 from collections import Counter
-from typing import Annotated
+from collections.abc import Callable
+from datetime import date
+from pathlib import Path
+from typing import Annotated, Literal
 
 import typer
 
 from statarb import __version__
+from statarb.data import build as build_tables
+from statarb.data import dq, pipeline
 from statarb.log import configure_logging
 from statarb.settings import get_settings
 from statarb.smoke import run_smoke
@@ -20,6 +25,10 @@ app = typer.Typer(
 )
 trials_app = typer.Typer(help="Inspect results/trial_log.csv.", no_args_is_help=True)
 app.add_typer(trials_app, name="trials")
+ingest_app = typer.Typer(help="Download or copy raw data into the data root.", no_args_is_help=True)
+app.add_typer(ingest_app, name="ingest")
+dq_app = typer.Typer(help="Data-quality checks DQ-01 to DQ-15.", no_args_is_help=True)
+app.add_typer(dq_app, name="dq")
 
 
 @app.callback(invoke_without_command=True)
@@ -73,3 +82,93 @@ def trials_list(
         )
     for name, count in sorted(Counter(row["strategy_family"] for row in rows).items()):
         typer.echo(f"{name}: {count}")
+
+
+def _step(run: Callable[[], pipeline.StepReport]) -> None:
+    try:
+        report = run()
+    except pipeline.PipelineError as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(code=2) from error
+    for line in report.lines:
+        typer.echo(line)
+    typer.echo(f"downloaded {report.downloaded} files")
+
+
+@ingest_app.command("prices")
+def ingest_prices(
+    provider: Annotated[
+        Literal["sharadar", "stooq", "crsp", "tiingo"], typer.Option("--provider")
+    ] = "sharadar",
+    start: Annotated[
+        str | None, typer.Option("--start", help="Recorded only: bulk files are full history.")
+    ] = None,
+    end: Annotated[str | None, typer.Option("--end", help="Recorded only.")] = None,
+    seed_from: Annotated[
+        Path | None,
+        typer.Option(
+            "--seed-from", help="Link existing eqpit raw snapshots instead of downloading."
+        ),
+    ] = None,
+) -> None:
+    """Equity prices, security master and delistings (FR-05)."""
+    for value in (start, end):
+        if value is not None:
+            date.fromisoformat(value)
+    _step(lambda: pipeline.ingest_prices(get_settings(), provider, seed_from))
+
+
+@ingest_app.command("etf")
+def ingest_etf(
+    provider: Annotated[Literal["sharadar", "stooq"], typer.Option("--provider")] = "sharadar",
+) -> None:
+    """Sector and market ETF prices for configs/sic_to_etf.yaml."""
+    _step(lambda: pipeline.ingest_etf(get_settings(), provider))
+
+
+@ingest_app.command("sic")
+def ingest_sic(
+    provider: Annotated[
+        Literal["sharadar", "edgar", "crsp"], typer.Option("--provider")
+    ] = "sharadar",
+) -> None:
+    """Industry history (FR-07)."""
+    _step(lambda: pipeline.ingest_sic(get_settings(), provider))
+
+
+@ingest_app.command("borrow")
+def ingest_borrow(
+    source: Annotated[Literal["assumed", "ibkr"], typer.Option("--source")] = "assumed",
+) -> None:
+    """The assumed borrow schedule (D-07)."""
+    _step(lambda: pipeline.ingest_borrow(get_settings(), source))
+
+
+@app.command()
+def build(
+    tables: Annotated[
+        str, typer.Option("--tables", help="Comma list of prices, industry, etf, borrow.")
+    ] = ",".join(build_tables.ALL_TABLES),
+) -> None:
+    """Raw to processed tables for STATARB_EQUITY_PROVIDER."""
+    chosen = tuple(name.strip() for name in tables.split(",") if name.strip())
+    unknown = sorted(set(chosen) - set(build_tables.ALL_TABLES))
+    if unknown:
+        typer.echo(f"unknown tables {unknown}", err=True)
+        raise typer.Exit(code=2)
+    _step(lambda: pipeline.run_build(get_settings(), chosen))
+
+
+@dq_app.command("check")
+def dq_check(
+    profile: Annotated[Literal["headline", "prototype"], typer.Option("--profile")] = "headline",
+    report: Annotated[Path, typer.Option("--report")] = Path("reports/dq/dq_report.md"),
+) -> None:
+    """Run DQ-01 to DQ-15, write the report, exit 1 on any hard failure."""
+    results = pipeline.run_dq(get_settings(), profile, report)
+    for result in results:
+        typer.echo(f"{result.status.upper():<5} {result.rule:<8} {result.summary}")
+    failures = dq.failed(results)
+    typer.echo(f"dq: {len(failures)} hard failures; report {report.as_posix()}")
+    if failures:
+        raise typer.Exit(code=1)
