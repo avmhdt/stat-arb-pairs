@@ -179,6 +179,8 @@ def test_combine_averages_active_windows() -> None:
             "employed": [1.0, 0.0],
             "gross_exposure": [2.0, 0.0],
             "n_open": [1, 0],
+            "turnover": [0.1, 0.0],
+            "cost_impact": [0.0, 0.0],
         }
     )
     second = first.with_columns(

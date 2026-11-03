@@ -1,0 +1,10 @@
+# M6 GGR distance runs over 1998-2025: gross as in the paper (decay, AC-H-02), the
+# survivors-only universe (AC-W-09), and this project's cost model with each sizing scheme
+# (break-even, capacity, FR-31).
+data.end: [2025-12-31]
+members:
+  - {run.name: ggr_distance}
+  - {universe.survivors_only: true}
+  - {costs.commission_bps: 1.0, costs.half_spread.model: quotes_then_corwin_schultz, costs.impact.model: sqrt, costs.borrow.multiplier: 1.0}
+  - {costs.commission_bps: 1.0, costs.half_spread.model: quotes_then_corwin_schultz, costs.impact.model: sqrt, costs.borrow.multiplier: 1.0, sizing.scheme: inverse_half_life}
+  - {costs.commission_bps: 1.0, costs.half_spread.model: quotes_then_corwin_schultz, costs.impact.model: sqrt, costs.borrow.multiplier: 1.0, sizing.scheme: vol_target}

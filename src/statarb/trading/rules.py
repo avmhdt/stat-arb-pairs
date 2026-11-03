@@ -10,7 +10,8 @@ The position after the close of day ``t`` depends only on ``z[:t + 1]``:
   sessions;
 - never close and reopen on the same day, so a position never flips sign without a day
   at zero; a NaN ``z`` changes nothing;
-- the last day is flat when ``close_at_end`` (window end).
+- the last day is flat when ``close_at_end`` (window end);
+- under a break policy, a flagged day closes the position and blocks entries (FR-26).
 """
 
 from __future__ import annotations
@@ -25,13 +26,14 @@ from numba import njit
 F64 = npt.NDArray[np.float64]
 I8 = npt.NDArray[np.int8]
 
-NONE, ENTRY, EXIT, STOP, TIME_STOP, WINDOW_END = 0, 1, 2, 3, 4, 5
+NONE, ENTRY, EXIT, STOP, TIME_STOP, WINDOW_END, BREAK = 0, 1, 2, 3, 4, 5, 6
 REASONS = {
     ENTRY: "entry",
     EXIT: "exit",
     STOP: "stop",
     TIME_STOP: "time_stop",
     WINDOW_END: "window_end",
+    BREAK: "break",
 }
 
 
@@ -44,6 +46,9 @@ def _machine(
     band: bool,
     max_holding: int,
     close_at_end: bool,
+    broken: npt.NDArray[np.bool_],
+    break_close: bool,
+    break_blacklist: bool,
 ) -> tuple[I8, I8]:
     n = z.size
     position = np.zeros(n, dtype=np.int8)
@@ -55,7 +60,13 @@ def _machine(
         value = z[t]
         if state != 0:
             held += 1
-        if not math.isnan(value):
+        if break_close and broken[t]:
+            if state != 0:
+                state = 0
+                reason[t] = 6
+            if break_blacklist:
+                stopped = True
+        elif not math.isnan(value):
             magnitude = abs(value)
             if state == 0:
                 if not stopped and entry <= magnitude < stop:
@@ -87,8 +98,16 @@ def state_machine(
     exit_mode: Literal["cross_zero", "band"],
     max_holding: int | None,
     close_at_end: bool = True,
+    broken: npt.NDArray[np.bool_] | None = None,
+    break_close: bool = False,
+    break_blacklist: bool = False,
 ) -> tuple[I8, I8]:
-    """Positions (-1, 0, +1) after each close and the reason code of each change."""
+    """Positions (-1, 0, +1) after each close and the reason code of each change.
+
+    ``broken`` flags days on which the pair's cointegration test fails (FR-26). With
+    ``break_close`` an open position closes on such a day and none opens; with
+    ``break_blacklist`` the pair also stays closed for the rest of the window.
+    """
     if exit_mode not in ("cross_zero", "band"):
         raise ValueError(f"unknown exit_mode {exit_mode!r}")
     stop_level = math.inf if stop is None else float(stop)
@@ -102,6 +121,11 @@ def state_machine(
         exit_mode == "band",
         0 if max_holding is None else int(max_holding),
         close_at_end,
+        np.zeros(len(z), dtype=np.bool_)
+        if broken is None
+        else np.ascontiguousarray(broken, dtype=np.bool_),
+        break_close,
+        break_blacklist,
     )
 
 
