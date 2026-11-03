@@ -69,8 +69,22 @@ class RunResult:
 def load_for(cfg: RunConfig, processed: Path) -> MarketData:
     """The processed panel a run needs."""
     return load_market_data(
-        processed, cfg.data.start, cfg.data.end, PRICE_COLUMNS, tuple(cfg.universe.security_types)
+        processed,
+        cfg.data.start,
+        cfg.data.end,
+        PRICE_COLUMNS,
+        tuple(cfg.universe.security_types),
+        ever_min_mktcap_usd=min_mktcap(cfg),
     )
+
+
+def min_mktcap(cfg: RunConfig) -> float | None:
+    """The run's market-cap floor, if any: the universe's, or A-L's for the A-L families."""
+    floors = [cfg.universe.min_mktcap_usd]
+    if cfg.run.strategy_family in ("al_pca", "al_etf"):
+        floors.append(cfg.al.universe_min_mktcap_usd)
+    known = [value for value in floors if value is not None]
+    return max(known) if known else None
 
 
 def _context(cfg: RunConfig, data: MarketData) -> None:

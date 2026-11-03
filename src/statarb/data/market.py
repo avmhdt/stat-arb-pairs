@@ -62,6 +62,7 @@ def load_market_data(
     end: date,
     price_columns: list[str] | None = None,
     security_types: tuple[str, ...] | None = None,
+    ever_min_mktcap_usd: float | None = None,
 ) -> MarketData:
     """Read processed tables for ``[start, end]``.
 
@@ -75,6 +76,9 @@ def load_market_data(
         Price columns to keep besides ``date`` and ``security_id``; all when omitted.
     security_types
         Keep prices only for these master types, which keeps memory down.
+    ever_min_mktcap_usd
+        Keep only securities whose market cap reaches this level on some day in the range.
+        It changes no universe: a name below the floor on every day fails it at every T.
     """
     info = schemas.read_build_info(processed)
     master = pl.read_parquet(processed / "security_master" / "*.parquet")
@@ -83,6 +87,15 @@ def load_market_data(
     if security_types is not None:
         wanted = master.filter(pl.col("security_type").is_in(list(security_types)))["security_id"]
         scan = scan.filter(pl.col("security_id").is_in(wanted.to_list()))
+    if ever_min_mktcap_usd is not None:
+        big = (
+            scan.group_by("security_id")
+            .agg(pl.col("mktcap_usd").max())
+            .filter(pl.col("mktcap_usd") >= ever_min_mktcap_usd)
+            .select("security_id")
+            .collect()
+        )
+        scan = scan.join(big.lazy(), on="security_id", how="semi")
     if price_columns is not None:
         scan = scan.select("date", "security_id", *price_columns)
     prices = scan.collect().sort("security_id", "date").rechunk()
