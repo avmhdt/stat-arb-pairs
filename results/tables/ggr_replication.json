@@ -1,0 +1,10 @@
+{
+  "all_same_sign": true,
+  "no_wait_ordering_holds": false,
+  "no_wait_top20_t_gt_2": true,
+  "no_wait_top20_within_30pct": true,
+  "pass": false,
+  "wait_one_day_ordering_holds": false,
+  "wait_one_day_top20_t_gt_2": true,
+  "wait_one_day_top20_within_30pct": true
+}

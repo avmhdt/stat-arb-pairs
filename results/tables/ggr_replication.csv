@@ -1,0 +1,13 @@
+portfolio,wait,capital,period,months,mean_monthly,se_newey_west,t_stat,data_profile,run_id,paper_mean_monthly,paper_t_stat,paper_1989_2002_mean_monthly,ratio_to_paper,same_sign,label
+101-120,no_wait,committed,1999-01/2002-12,48,0.013660,0.002383,5.731952,headline,6a58c082-f07a-443c-96ed-e2813136b43a,0.006790,,,2.011825,true,partial: Sharadar 1998-2002 overlap (D-03)
+top20,no_wait,committed,1999-01/2002-12,48,0.006113,0.001422,4.300277,headline,67378aaa-34fb-4c7b-a0ea-97f9df60b150,0.008050,,,0.759407,true,partial: Sharadar 1998-2002 overlap (D-03)
+top5,no_wait,committed,1999-01/2002-12,48,0.003697,0.001536,2.407019,headline,d7ef4cce-4fed-49c9-9718-104e468911fa,0.007840,,,0.471516,true,partial: Sharadar 1998-2002 overlap (D-03)
+101-120,no_wait,fully_invested,1999-01/2002-12,48,0.024211,0.004207,5.755284,headline,6a58c082-f07a-443c-96ed-e2813136b43a,0.010810,11.540000,,2.239728,true,partial: Sharadar 1998-2002 overlap (D-03)
+top20,no_wait,fully_invested,1999-01/2002-12,48,0.010113,0.003338,3.029353,headline,67378aaa-34fb-4c7b-a0ea-97f9df60b150,0.014360,11.560000,,0.704231,true,partial: Sharadar 1998-2002 overlap (D-03)
+top5,no_wait,fully_invested,1999-01/2002-12,48,0.005915,0.002843,2.080581,headline,d7ef4cce-4fed-49c9-9718-104e468911fa,0.013080,8.840000,,0.452194,true,partial: Sharadar 1998-2002 overlap (D-03)
+101-120,wait_one_day,committed,1999-01/2002-12,48,0.010525,0.001881,5.594239,headline,73b5aded-726d-43b3-805a-ba33c8858a1a,0.005030,,,2.092526,true,partial: Sharadar 1998-2002 overlap (D-03)
+top20,wait_one_day,committed,1999-01/2002-12,48,0.004211,0.001165,3.613440,headline,768c7b56-2719-45c5-82cd-a63fec44bf4e,0.005200,,,0.809727,true,partial: Sharadar 1998-2002 overlap (D-03)
+top5,wait_one_day,committed,1999-01/2002-12,48,0.002877,0.001325,2.170810,headline,92e7a1f0-a379-477a-8739-31fab54968a3,0.004630,,,0.621342,true,partial: Sharadar 1998-2002 overlap (D-03)
+101-120,wait_one_day,fully_invested,1999-01/2002-12,48,0.018411,0.003195,5.762236,headline,73b5aded-726d-43b3-805a-ba33c8858a1a,0.007950,9.400000,0.003270,2.315854,true,partial: Sharadar 1998-2002 overlap (D-03)
+top20,wait_one_day,fully_invested,1999-01/2002-12,48,0.006953,0.002498,2.782928,headline,768c7b56-2719-45c5-82cd-a63fec44bf4e,0.008950,9.290000,0.003750,0.776857,true,partial: Sharadar 1998-2002 overlap (D-03)
+top5,wait_one_day,fully_invested,1999-01/2002-12,48,0.004864,0.002422,2.008114,headline,92e7a1f0-a379-477a-8739-31fab54968a3,0.007450,6.260000,0.002170,0.652828,true,partial: Sharadar 1998-2002 overlap (D-03)

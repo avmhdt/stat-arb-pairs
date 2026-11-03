@@ -1,0 +1,16 @@
+portfolio,wait,capital,period,mean_monthly,se_newey_west,t_stat,source,confirmed
+top5,no_wait,fully_invested,1963-07/2002-12,0.01308,0.00148,8.84,"Yale ICF WP 08-03 (Feb 2006) Table 1 Panel A, p. 34",true
+top20,no_wait,fully_invested,1963-07/2002-12,0.01436,0.00124,11.56,"Yale ICF WP 08-03 (Feb 2006) Table 1 Panel A, p. 34",true
+101-120,no_wait,fully_invested,1963-07/2002-12,0.01081,0.00094,11.54,"Yale ICF WP 08-03 (Feb 2006) Table 1 Panel A, p. 34",true
+top5,no_wait,committed,1963-07/2002-12,0.00784,,,"Yale ICF WP 08-03 (Feb 2006) Table 1 Panel A, p. 34",true
+top20,no_wait,committed,1963-07/2002-12,0.00805,,,"Yale ICF WP 08-03 (Feb 2006) Table 1 Panel A, p. 34",true
+101-120,no_wait,committed,1963-07/2002-12,0.00679,,,"Yale ICF WP 08-03 (Feb 2006) Table 1 Panel A, p. 34",true
+top5,wait_one_day,fully_invested,1963-07/2002-12,0.00745,0.00119,6.26,"Yale ICF WP 08-03 (Feb 2006) Table 1 Panel B, p. 34",true
+top20,wait_one_day,fully_invested,1963-07/2002-12,0.00895,0.00096,9.29,"Yale ICF WP 08-03 (Feb 2006) Table 1 Panel B, p. 34",true
+101-120,wait_one_day,fully_invested,1963-07/2002-12,0.00795,0.00085,9.40,"Yale ICF WP 08-03 (Feb 2006) Table 1 Panel B, p. 34",true
+top5,wait_one_day,committed,1963-07/2002-12,0.00463,,,"Yale ICF WP 08-03 (Feb 2006) Table 1 Panel B, p. 34",true
+top20,wait_one_day,committed,1963-07/2002-12,0.00520,,,"Yale ICF WP 08-03 (Feb 2006) Table 1 Panel B, p. 34",true
+101-120,wait_one_day,committed,1963-07/2002-12,0.00503,,,"Yale ICF WP 08-03 (Feb 2006) Table 1 Panel B, p. 34",true
+top5,wait_one_day,fully_invested,1989-01/2002-12,0.00217,,,"Yale ICF WP 08-03 (Feb 2006) Table 8 Panel B, p. 41",true
+top20,wait_one_day,fully_invested,1989-01/2002-12,0.00375,,,"Yale ICF WP 08-03 (Feb 2006) Table 8 Panel B, p. 41",true
+101-120,wait_one_day,fully_invested,1989-01/2002-12,0.00327,,,"Yale ICF WP 08-03 (Feb 2006) Table 8 Panel B, p. 41",true

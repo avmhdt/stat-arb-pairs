@@ -1,0 +1,6 @@
+# GGR (2006) Table 1 portfolios, with and without the one-day wait: 6 runs, 6 trial-log rows.
+members:
+  - {selection.top_k: 5, selection.rank_from: 1}
+  - {selection.top_k: 20, selection.rank_from: 1}
+  - {selection.top_k: 20, selection.rank_from: 101}
+windows.execution_lag_days: [0, 1]

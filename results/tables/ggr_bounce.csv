@@ -1,0 +1,4 @@
+portfolio,fully_invested_no_wait,fully_invested_wait_one_day,fully_invested_drop_bps,fully_invested_drop_share,committed_no_wait,committed_wait_one_day,committed_drop_bps,committed_drop_share,pairs,spread_sigma_mean,leg_daily_vol_mean,leg_cs_half_spread_bps_mean,round_trips_per_pair
+top5,0.005915,0.004864,10.511311,0.177715,0.003697,0.002877,8.198708,0.221785,215.000000,0.021243,0.018203,32.263457,1.609302
+top20,0.010113,0.006953,31.598777,0.312465,0.006113,0.004211,19.026452,0.311234,860.000000,0.027260,0.015488,27.728311,1.717442
+101-120,0.024211,0.018411,58.004177,0.239573,0.013660,0.010525,31.348890,0.229489,860.000000,0.044172,0.023482,40.665435,1.941860
