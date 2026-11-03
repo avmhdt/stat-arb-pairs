@@ -184,6 +184,26 @@ class CostsConfig(_Section):
     aum_usd: float = Field(default=10_000_000.0, gt=0.0)
 
 
+class AlConfig(_Section):
+    """Avellaneda-Lee residual strategies (FR-18, FR-19)."""
+
+    factors: Literal["pca", "etf"] = "pca"
+    corr_window_days: int = Field(default=252, ge=20)
+    n_factors: int = Field(default=15, ge=1)
+    variance_explained: float | None = Field(default=None, gt=0.0, lt=1.0)
+    resid_window_days: int = Field(default=60, ge=10)
+    kappa_min: float = Field(default=252 / 30, ge=0.0)
+    s_open: float = Field(default=1.25, gt=0.0)
+    s_close_short: float = 0.75
+    s_close_long: float = 0.50
+    universe_min_mktcap_usd: float = 1.0e9
+    rebalance: Literal["daily"] = "daily"
+    center_means: bool = True
+    gross_per_side: float = Field(default=2.0, gt=0.0)
+    min_positions_per_side: int = Field(default=100, ge=1)
+    hedge_etf: str = "SPY"
+
+
 class OutputConfig(_Section):
     """Run outputs."""
 
@@ -204,6 +224,7 @@ class RunConfig(_Section):
     sizing: SizingConfig = SizingConfig()
     costs: CostsConfig = CostsConfig()
     output: OutputConfig = OutputConfig()
+    al: AlConfig = AlConfig()
 
     @model_validator(mode="after")
     def _free_data_is_prototype(self) -> RunConfig:

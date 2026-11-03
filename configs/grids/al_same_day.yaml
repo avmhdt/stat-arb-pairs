@@ -1,0 +1,4 @@
+# D-13 sensitivity for A-L, who trade at the signal day's close: no wait, flat 5 bp per side.
+windows.execution_lag_days: [0]
+members:
+  - {costs.commission_bps: 0.0, costs.half_spread.model: flat, costs.half_spread.flat_bps: 5.0, costs.impact.model: none, costs.borrow.multiplier: 0.0}

@@ -174,3 +174,83 @@ def test_frozen_window_is_unchanged_by_trading_data(market: SynthMarket, method:
     assert check_no_lookahead(selector, market.data, _windows(market), universe) == 3 * len(
         PERTURBATIONS
     )
+
+
+def _al_selector(family: str):  # type: ignore[no-untyped-def]
+    """A-L's frozen window: universe, formation history, hedges and T - 1 s-scores."""
+    from pathlib import Path
+
+    from statarb.config import RunConfig
+    from statarb.trading.engine import borrow_schedule
+    from statarb.trading.residual import freeze_al
+
+    cfg = RunConfig.model_validate(
+        {
+            "run": {"name": "leak", "strategy_family": family, "data_profile": "prototype"},
+            "data": {"provider": "free"},
+            "universe": {"top_n": None, "min_price_usd": None},
+            "al": {
+                "factors": "pca" if family == "al_pca" else "etf",
+                "n_factors": 3,
+                "universe_min_mktcap_usd": 0.0,
+            },
+        }
+    )
+    schedule = borrow_schedule(
+        Path(__file__).resolve().parents[2] / "configs" / "borrow_schedule.yaml"
+    )
+
+    def selector(view: FormationView) -> tuple[object, ...]:
+        frozen = freeze_al(view, cfg, schedule)
+        return (
+            frozen.ids,
+            frozen.hedges,
+            frozen.history.tobytes(),
+            frozen.s_initial.tobytes(),
+            frozen.kappa_initial.tobytes(),
+            tuple(sorted(frozen.legs.items())),
+        )
+
+    return selector, cfg
+
+
+@pytest.mark.parametrize("family", ["al_pca", "al_etf"])
+def test_al_frozen_window_is_unchanged_by_trading_data(market: SynthMarket, family: str) -> None:
+    selector, _ = _al_selector(family)
+    universe = UniverseConfig(top_n=None, min_price_usd=None)
+    assert check_no_lookahead(selector, market.data, _windows(market), universe) == 3 * len(
+        PERTURBATIONS
+    )
+
+
+@pytest.mark.parametrize("family", ["al_pca", "al_etf"])
+def test_al_daily_signals_are_causal(market: SynthMarket, family: str) -> None:
+    """Changing prices after day d of the trading window leaves days up to d untouched."""
+    from datetime import timedelta
+    from pathlib import Path
+
+    from statarb.trading.engine import borrow_schedule
+    from statarb.trading.residual import freeze_al, run_al_window
+    from statarb.windows import TradingView
+
+    _, cfg = _al_selector(family)
+    schedule = borrow_schedule(
+        Path(__file__).resolve().parents[2] / "configs" / "borrow_schedule.yaml"
+    )
+    window = _windows(market)[1]
+    universe = UniverseConfig(top_n=None, min_price_usd=None)
+    frozen = freeze_al(FormationView(market.data, window, universe), cfg, schedule)
+    clean = run_al_window(frozen, TradingView(market.data, window), cfg).daily
+    cut = window.trading_start + timedelta(days=40)
+    shifted = market.data.prices.with_columns(
+        pl.when(pl.col("date") > cut)
+        .then(pl.col("ret_total") * -3 + 0.02)
+        .otherwise(pl.col("ret_total"))
+        .alias("ret_total")
+    )
+    noisy = run_al_window(
+        frozen, TradingView(market.data.replace_prices(shifted), window), cfg
+    ).daily
+    before = pl.col("date") <= cut
+    assert clean.filter(before).equals(noisy.filter(before))
+    assert not clean.filter(~before).equals(noisy.filter(~before))

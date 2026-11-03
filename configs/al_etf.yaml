@@ -1,0 +1,35 @@
+# Avellaneda-Lee (2010) ETF residuals: each stock regressed on its SPDR sector ETF (FR-19),
+# with the same 60-day OU s-scores and rules; hedged with that ETF by beta. Before an ETF has
+# 252 sessions of history (DQ-07) its fallback in configs/sic_to_etf.yaml is used.
+extends: base.yaml
+run:
+  name: al_etf
+  strategy_family: al_etf
+  data_profile: headline
+  seed: 20261030
+universe:
+  security_types: [common]
+  rank_by: mktcap_usd
+  top_n: null
+  min_price_usd: 5.0
+  min_mktcap_usd: 1.0e9
+windows:
+  formation_months: 12
+  trading_months: 12
+  step_months: 12
+  execution_lag_days: 1
+al:
+  factors: etf
+  corr_window_days: 252
+  n_factors: 15
+  resid_window_days: 60
+  kappa_min: 8.4
+  s_open: 1.25
+  s_close_short: 0.75
+  s_close_long: 0.50
+  universe_min_mktcap_usd: 1.0e9
+  rebalance: daily
+  center_means: true
+  gross_per_side: 2.0
+  min_positions_per_side: 100
+  hedge_etf: SPY
