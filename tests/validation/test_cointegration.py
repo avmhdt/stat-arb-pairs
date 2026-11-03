@@ -111,7 +111,8 @@ def _null_pairs(count: int, seed: int) -> tuple[np.ndarray, np.ndarray]:
     reason=(
         "AC-W-05 asks for size 5% +/- 1.5 pp on 2,000 independent random-walk pairs. One "
         "ordering with AIC lags and MacKinnon's asymptotic p-values rejects 7.3% here and "
-        "6.55% on 20,000 pairs, as statsmodels' coint does. Held for the owner's ruling."
+        "6.55% on 20,000 pairs, as statsmodels' coint does. Owner ruling 2026-11-03: "
+        "accepted as a documented miss."
     ),
 )
 def test_size_on_independent_random_walks() -> None:
@@ -150,8 +151,8 @@ def test_power_at_short_half_life() -> None:
     reason=(
         "AC-W-05 asks for power >= 0.90 at a 10-day half-life with n = 252. Engle-Granger "
         "measures about 0.5 here and in statsmodels' coint: the expected ADF statistic is "
-        "about -3 against a critical value near -3.34. Held for the owner's ruling; the "
-        "threshold is unchanged."
+        "about -3 against a critical value near -3.34. Owner ruling 2026-11-03: accepted as "
+        "a documented miss; threshold unchanged."
     ),
 )
 def test_power_at_ten_day_half_life() -> None:

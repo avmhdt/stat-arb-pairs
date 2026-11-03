@@ -39,6 +39,13 @@ Owner decisions copied from the portfolio-wide `DECISIONS.md` (recorded 2026-10-
 - Data stays on `D:` (native Windows `./data`) or WSL ext4, never `C:`, and never in git. Free space is checked at each milestone.
 - Live recorders share this PC: downloads are capped at 10 MB/s, one table at a time; heavy runs use at most 8 threads. Never restart WSL, reboot, or edit `.wslconfig`.
 
+## Owner rulings during the build
+
+| Milestone | Item | Ruling |
+|---|---|---|
+| M3 | AC-W-05 size and power | Accepted as findings (2026-11-03). Documented misses: Engle-Granger at n = 252 rejects 6.55% to 7.3% of null pairs at 5% (band 3.5% to 6.5%) and has power about 0.5 at a 10-day half-life (target 0.90). Thresholds unchanged; the strict expected failures in `tests/validation/test_cointegration.py` stay |
+| M3 | AC-W-07 median relative error | Accepted as a finding (2026-11-03); both readings reported, no pass claimed. Median signed error -3.9%; median absolute error 12.2%, against a Cramer-Rao floor near 12% at 1,000 steps and a 10-day half-life, so the absolute target is below what any estimator can reach. The other two AC-W-07 checks pass: 95.8% of estimates within +/-35%, AR(1) and MLE median gap under 2%. `tests/validation/test_ou.py` keeps the absolute target as a strict expected failure |
+
 ## Agent decisions
 
 | Milestone | Item | Choice | Why |
@@ -76,9 +83,8 @@ Owner decisions copied from the portfolio-wide `DECISIONS.md` (recorded 2026-10-
 | M3 | Order of filters | BH (primary) on all tested pairs, then the OU half-life band [1, 63], then Johansen confirmation at 95% (lag in differences by AIC, at most 5, `deterministic="co"`), then rank by p-value and take each stock once, up to `top_k` | FR-10, FR-11. Johansen runs only on discoveries, so it never feeds FDR |
 | M3 | Distance rows kept | The `max(store_top, rank_from + top_k - 1)` best-ranked pairs per window (200 by default); `fdr_m` holds how many pairs were compared | All-pairs rows would be millions per window; GGR needs ranks up to 120 |
 | M3 | Distance spread sigma | Sample standard deviation (`ddof = 1`) of the normalised price difference over formation | GGR's "historical standard deviation" |
-| M3 | AC-W-07 reading | "Median relative error of half-life <= 10%" read as the median signed error (the estimator's bias). Measured on 1,000 paths: median signed -3.9%, median absolute 12.2%, 95.8% within +/-35%, AR(1) and MLE median gap under 2% | The Cramer-Rao bound puts the median absolute error near 12% at 1,000 steps and half-life 10, so the absolute reading cannot be met by any estimator. Flagged for the owner |
 | M3 | AC-W-04 simulation | Realised FDR measured on the p-values selection uses (the larger of the two orderings) | That is the family FDR sees. With one ordering's p-values instead, realised FDR was 9.6% (BH) and 12.2% (BY): MacKinnon's asymptotic p-values are too small in the far tail at n = 252 (2.4 times nominal at 0.05%) |
-| M3 | AC-W-05 size and power | Not met; held for the owner. Size on independent random walks with one ordering and AIC lags: 7.3% on the AC's 2,000 pairs, 6.55% on 20,000 (band 3.5% to 6.5%). Power at a 10-day half-life, n = 252: about 0.5 (target 0.90), the same in statsmodels' `coint`. Both stay in `tests/validation/test_cointegration.py` as strict expected failures; thresholds unchanged | Properties of the Engle-Granger test at this sample size, not of this implementation |
+| M3 | AC-W-05 size and power | Not met; see the owner's ruling below. Size on independent random walks with one ordering and AIC lags: 7.3% on the AC's 2,000 pairs, 6.55% on 20,000 (band 3.5% to 6.5%). Power at a 10-day half-life, n = 252: about 0.5 (target 0.90), the same in statsmodels' `coint`. Both stay in `tests/validation/test_cointegration.py` as strict expected failures; thresholds unchanged | Properties of the Engle-Granger test at this sample size, not of this implementation |
 | M3 | Synthetic planted half-lives | 1 to 3.25 sessions | The spec leaves them open. Recovery (section 11: recall >= 8/10, FDP <= 0.10) checks that clearly cointegrated pairs are found; weaker ones are the power tests' job |
 | M3 | Finding: few FDR discoveries | Headline 1999 to 2025: 7.1M tests in 319 windows, BH 1,012 discoveries, BY 288, 422 traded, about 1.3 a window against `top_k = 20`. Reported in `docs/multiple_testing.md` and `results/tables/fdr_by_window.csv`; q unchanged | Risk R-03; spec section 16 forbids loosening q after seeing results |
 | M3 | `statarb report` | At M3 it writes `results/tables/fdr_by_window.csv` from the newest headline cointegration selection per config and regenerates the marked block in `docs/multiple_testing.md` | AC-W-03; later milestones add their tables |

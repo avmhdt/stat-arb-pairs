@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 
 import numpy as np
+import pytest
 
 from statarb.models.ou import fit_ou
 
@@ -27,9 +28,30 @@ def test_half_life_recovery_and_ar1_vs_mle() -> None:
         ar1.append(fast.half_life_days)
         gaps.append(abs(exact.half_life_days - fast.half_life_days) / fast.half_life_days)
     relative = np.array(ar1) / true - 1.0
-    # "Median relative error <= 10%" read as the median signed error (the bias): the
-    # Cramer-Rao bound puts the median absolute error near 12% at 1,000 steps.
-    assert abs(float(np.median(relative))) <= 0.10
     assert float(np.mean(np.abs(relative) <= 0.35)) >= 0.90
-    assert float(np.median(np.abs(relative))) <= 0.15
     assert float(np.median(gaps)) <= 0.02
+    # Both readings of "median relative error", reported, neither claimed as the AC's pass.
+    assert -0.06 <= float(np.median(relative)) <= -0.02  # signed: about -3.9%
+    assert 0.10 <= float(np.median(np.abs(relative))) <= 0.14  # absolute: about 12.2%
+
+
+def _cramer_rao_median_abs(half_life: float, n: int) -> float:
+    """Median |relative error| of the half-life implied by the AR(1) slope's Cramer-Rao bound."""
+    b = 2.0 ** (-1.0 / half_life)
+    sd_b = math.sqrt((1.0 - b * b) / n)
+    slope = math.log(2.0) / (b * math.log(b) ** 2)  # d half-life / d b
+    return 0.6745 * slope * sd_b / half_life
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "AC-W-07, owner ruling 2026-11-03: accepted as a finding, no pass claimed. The median "
+        "absolute half-life error is 12.2%; the Cramer-Rao floor is near 12% at 1,000 steps, "
+        "below the 10% target for any estimator."
+    ),
+)
+def test_median_absolute_error_target() -> None:
+    floor = _cramer_rao_median_abs(10.0, 1000)
+    assert 0.11 <= floor <= 0.13, floor
+    assert floor <= 0.10
