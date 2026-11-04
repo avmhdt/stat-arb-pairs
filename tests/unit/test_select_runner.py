@@ -104,9 +104,7 @@ def test_cli_select_and_report(
     assert bad.exit_code == 2
     doc = tmp_path / "docs.md"
     doc.write_text(f"{tables.START}\n{tables.END}\n")
+    # The report builds from the study's backtests; with none run it names them and exits 2.
     reported = runner_.invoke(cli.app, ["report", "--doc", str(doc)])
-    assert reported.exit_code == 0, reported.output
-    assert (
-        runner_.invoke(cli.app, ["report", "--profile", "prototype", "--doc", str(doc)]).exit_code
-        == 2
-    )
+    assert reported.exit_code == 2
+    assert "statarb reproduce" in reported.output

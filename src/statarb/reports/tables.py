@@ -46,11 +46,24 @@ def latest_coint(runs: Path, profile: str = "headline") -> dict[str, Selection]:
     return latest
 
 
-def fdr_by_window(runs: Path, profile: str = "headline") -> pl.DataFrame:
-    """One row per (config, window): m, raw rejections, BH and BY discoveries, traded."""
+def fdr_by_window(runs: Path | dict[str, Path], profile: str = "headline") -> pl.DataFrame:
+    """One row per (config, window): m, raw rejections, BH and BY discoveries, traded.
+
+    ``runs`` is either a runs folder (the newest cointegration selection per config is used)
+    or a mapping of config name to a ``pairs.parquet`` holding every tested pair.
+    """
+    sources = (
+        runs
+        if isinstance(runs, dict)
+        else {
+            name: item.path / "pairs.parquet" for name, item in latest_coint(runs, profile).items()
+        }
+    )
     frames = []
-    for name, item in sorted(latest_coint(runs, profile).items()):
-        tested = pl.read_parquet(item.path / "pairs.parquet")
+    for name, path in sorted(sources.items()):
+        if not path.exists():
+            continue
+        tested = pl.read_parquet(path)
         frames.append(
             fdr_summary(tested).with_columns(
                 pl.lit(name).alias("config"), pl.lit(profile).alias("data_profile")
@@ -97,12 +110,12 @@ def markdown(table: pl.DataFrame) -> str:
 
 
 def write_fdr_outputs(
-    runs: Path, tables: Path, doc: Path, profile: str = "headline"
+    runs: Path | dict[str, Path], tables: Path, doc: Path, profile: str = "headline"
 ) -> pl.DataFrame:
     """Write ``fdr_by_window.csv`` and the generated block of ``docs/multiple_testing.md``."""
     table = fdr_by_window(runs, profile)
     if table.is_empty():
-        raise FileNotFoundError(f"no {profile} cointegration selection under {runs}")
+        raise FileNotFoundError(f"no {profile} cointegration selection in {runs}")
     tables.mkdir(parents=True, exist_ok=True)
     table.write_csv(tables / "fdr_by_window.csv")
     yearly = by_year(table)
