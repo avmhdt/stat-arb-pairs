@@ -145,9 +145,28 @@ def ingest_sic(settings: Settings, provider: str) -> StepReport:
 
 
 def ingest_borrow(settings: Settings, source: str) -> StepReport:
-    """Materialise the assumed schedule (D-07). IBKR snapshots arrive with FR-34 in M6."""
-    if source != "assumed":
-        raise PipelineError("the IBKR borrow snapshot collector arrives in M6 (FR-34)")
+    """Materialise the assumed schedule (D-07), or store today's IBKR snapshot (FR-34)."""
+    if source == "ibkr":
+        from statarb.data.providers import ibkr
+
+        root = raw_dir(settings, "ibkr")
+        try:
+            snapshot, new = ibkr.fetch(root)
+        except OSError as error:  # pragma: no cover - network
+            raise PipelineError(f"IBKR FTP failed: {error}") from error
+        files = [snapshot / ibkr.US_FILE, snapshot / "usa.parquet"]
+        manifest.record(
+            settings.data_dir,
+            [
+                manifest.entry_for(
+                    settings.data_dir, f, "ibkr", f.stem, f"ftp://{ibkr.HOST}/{ibkr.US_FILE}"
+                )
+                for f in files
+            ],
+        )
+        return StepReport(
+            [f"ibkr     {'downloaded' if new else 'kept':<10} {snapshot.name}"], 1 if new else 0
+        )
     target = raw_dir(settings, "borrow") / "assumed_schedule.yaml"
     target.parent.mkdir(parents=True, exist_ok=True)
     changed = not target.exists() or target.read_bytes() != BORROW_SCHEDULE.read_bytes()
@@ -250,3 +269,20 @@ def run_dq(settings: Settings, profile: str, report: Path) -> list[dq.DqResult]:
     report.parent.mkdir(parents=True, exist_ok=True)
     report.write_text(dq.render_report(results, profile), encoding="utf-8", newline="\n")
     return results
+
+
+def ingest_french(settings: Settings) -> StepReport:
+    """Ken French daily short-term reversal and market factors (FR-25)."""
+    from statarb.data.providers import french
+
+    root = raw_dir(settings, "french")
+    out, fetched = french.ingest(root)
+    manifest.record(
+        settings.data_dir,
+        [
+            manifest.entry_for(settings.data_dir, root / name, "french", name, french.BASE + name)
+            for name in french.FILES.values()
+        ],
+    )
+    rows = pl.scan_parquet(out).select(pl.len()).collect().item()
+    return StepReport([f"french   {rows:,} daily rows -> {out.name}"], fetched)

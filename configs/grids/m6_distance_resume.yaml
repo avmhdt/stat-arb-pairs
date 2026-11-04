@@ -1,0 +1,9 @@
+# The four m6_distance members still to run after Windows ended the first sweep at about
+# 00:11 UTC on 2026-11-04 (the gross member had finished; the survivors-only member is
+# logged as aborted). Same members as configs/grids/m6_distance.yaml.
+data.end: [2025-12-31]
+members:
+  - {universe.survivors_only: true}
+  - {costs.commission_bps: 1.0, costs.half_spread.model: quotes_then_corwin_schultz, costs.impact.model: sqrt, costs.borrow.multiplier: 1.0}
+  - {costs.commission_bps: 1.0, costs.half_spread.model: quotes_then_corwin_schultz, costs.impact.model: sqrt, costs.borrow.multiplier: 1.0, sizing.scheme: inverse_half_life}
+  - {costs.commission_bps: 1.0, costs.half_spread.model: quotes_then_corwin_schultz, costs.impact.model: sqrt, costs.borrow.multiplier: 1.0, sizing.scheme: vol_target}

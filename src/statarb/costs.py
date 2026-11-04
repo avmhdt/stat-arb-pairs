@@ -117,6 +117,22 @@ def trade_cost(
     return commission, spread, impact
 
 
+def participation_scale(
+    notionals: tuple[float, ...], legs: tuple[LegCostInputs, ...], params: CostParams
+) -> float:
+    """Factor (at most 1) that keeps every leg's trade within ``max_participation`` of ADV.
+
+    Applies only with the impact model on: the cap belongs to the impact block (FR-24), so
+    gross-of-cost replications trade unscaled. A leg without ADV gets no position.
+    """
+    if not params.impact_on:
+        return 1.0
+    worst = max(participation(n, leg, params) for n, leg in zip(notionals, legs, strict=True))
+    if math.isinf(worst):
+        return 0.0
+    return 1.0 if worst <= params.max_participation else params.max_participation / worst
+
+
 def participation(notional: float, leg: LegCostInputs, params: CostParams) -> float:
     """Traded USD over ADV, for the 10% cap diagnostics (FR-24)."""
     if leg.adv_usd <= 0:

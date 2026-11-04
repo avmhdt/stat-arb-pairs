@@ -217,9 +217,10 @@ def run_backtest(
     if cfg.output.save_trades:
         trades.write_parquet(target / "trades.parquet", compression="zstd")
     trips.write_parquet(target / "roundtrips.parquet", compression="zstd")
-    (target / "metrics.json").write_text(
-        json.dumps(metrics, indent=2, sort_keys=True), encoding="utf-8"
-    )
+    # metrics.json goes last and atomically: its presence marks a complete run folder.
+    partial = target / "metrics.json.partial"
+    partial.write_text(json.dumps(metrics, indent=2, sort_keys=True), encoding="utf-8")
+    partial.replace(target / "metrics.json")
     log.info(
         "run_done", run_id=run_id, family=family, windows=count, sharpe=metrics.get("sharpe_annual")
     )

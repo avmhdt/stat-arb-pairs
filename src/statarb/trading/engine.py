@@ -34,6 +34,7 @@ from statarb.costs import (
     borrow_cost,
     half_spread,
     participation,
+    participation_scale,
     trade_cost,
 )
 from statarb.data.build import borrow_rates
@@ -426,6 +427,10 @@ def run_window(
                     entry_costs = 0.0
                 else:
                     w_y, w_x = leg_weights(wanted, float(beta[signal_day]), gross, frozen.distance)
+                    capped = participation_scale(
+                        (w_y, w_x), (frozen.legs[p.leg_y], frozen.legs[p.leg_x]), params
+                    )
+                    w_y, w_x = w_y * capped, w_x * capped
                     legs = ((p.leg_y, w_y), (p.leg_x, w_x))
                     value_y, value_x = w_y, w_x
                     why = "entry"

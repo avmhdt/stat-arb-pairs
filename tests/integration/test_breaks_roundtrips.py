@@ -82,3 +82,15 @@ def test_policies_run_and_label_exits(market: SynthMarket, tmp_path: Path, polic
         assert "stop" not in reasons and "break" not in reasons
     else:
         assert "break" in reasons
+
+
+def test_entries_respect_the_participation_cap(market: SynthMarket, tmp_path: Path) -> None:
+    cfg = _cfg()
+    big = cfg.model_copy(update={"costs": cfg.costs.model_copy(update={"aum_usd": 1e12})})
+    assert big.costs.impact.model == "sqrt"
+    result = run_backtest(big, data=market.data, results_dir=tmp_path)
+    entries = result.trades.filter(pl.col("reason") == "entry")
+    assert entries.height > 0
+    cap = big.costs.impact.max_participation
+    assert (entries["participation"] <= cap * (1 + 1e-9)).all()
+    assert entries["participation"].max() == pytest.approx(cap)

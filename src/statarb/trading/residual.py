@@ -32,7 +32,13 @@ import numpy as np
 import numpy.typing as npt
 import polars as pl
 
-from statarb.costs import LegCostInputs, borrow_cost, participation, trade_cost
+from statarb.costs import (
+    LegCostInputs,
+    borrow_cost,
+    participation,
+    participation_scale,
+    trade_cost,
+)
 from statarb.models.residuals import eigenportfolios, regression_residuals, s_scores
 from statarb.selection.pairs import PairSet
 from statarb.trading.engine import TRADE_COLUMNS, WindowResult, cost_params, leg_inputs
@@ -351,6 +357,7 @@ def run_al_window(
                 reason = "entry"
                 held_beta[i] = float(beta_hist[signal_day, i])
                 sizes[i] = equity * cfg.al.gross_per_side / expected
+                sizes[i] *= participation_scale((sizes[i],), (frozen.legs[ids[i]],), params)
                 traded = float(new * sizes[i])
             position[i] = new
             leg = frozen.legs[ids[i]]

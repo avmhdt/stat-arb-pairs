@@ -61,8 +61,6 @@ def test_sharadar_needs_key(settings: Settings) -> None:
         pipeline.ingest_etf(settings, "tiingo")
     with pytest.raises(pipeline.PipelineError, match="not available"):
         pipeline.ingest_sic(settings, "crsp")
-    with pytest.raises(pipeline.PipelineError, match="M6"):
-        pipeline.ingest_borrow(settings, "ibkr")
 
 
 def test_stooq_profile_end_to_end(settings: Settings, repo_configs: None, tmp_path: Path) -> None:
