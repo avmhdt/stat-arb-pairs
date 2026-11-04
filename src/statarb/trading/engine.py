@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 from typing import TYPE_CHECKING
 
@@ -34,6 +34,7 @@ from statarb.costs import (
     borrow_cost,
     half_spread,
     participation,
+    participation_scale,
     trade_cost,
 )
 from statarb.data.build import borrow_rates
@@ -54,6 +55,20 @@ F64 = npt.NDArray[np.float64]
 
 STALE_LIMIT = 5
 COST_COLUMNS = ("tr_index", "high", "low", "close", "volume", "ret_total", "mktcap_usd")
+ROUNDTRIP_COLUMNS = {
+    "window_id": pl.String,
+    "pair_id": pl.String,
+    "date_entry": pl.Date,
+    "date_exit": pl.Date,
+    "holding_days": pl.Int32,
+    "direction": pl.Int8,
+    "exit_reason": pl.String,
+    "half_life_days": pl.Float64,
+    "slot_capital": pl.Float64,
+    "pnl": pl.Float64,
+    "ret_on_slot": pl.Float64,
+}
+"""One row per closed position: P&L net of its trading and borrow costs (FR-26, FR-31)."""
 TRADE_COLUMNS = {
     "run_id": pl.String,
     "window_id": pl.String,
@@ -81,6 +96,7 @@ class FrozenPair:
     kalman: KalmanState | None
     scale: float
     max_holding: int | None
+    tail: tuple[F64, F64] | None = None  # last formation log prices, for break tests
 
 
 @dataclass(frozen=True)
@@ -101,6 +117,7 @@ class WindowResult:
     window_id: str
     daily: pl.DataFrame
     trades: pl.DataFrame
+    roundtrips: pl.DataFrame = field(default_factory=lambda: pl.DataFrame(schema=ROUNDTRIP_COLUMNS))
 
 
 def cost_params(cfg: RunConfig) -> CostParams:
@@ -184,7 +201,8 @@ def freeze(
     )
     legs = sorted({leg for p in pairset.pairs for leg in (p.leg_y, p.leg_x)})
     log_tr: dict[str, F64] = {}
-    if not distance and cfg.model.hedge == "kalman" and legs:
+    breaks = cfg.rules.break_policy in ("close_on_break", "close_and_blacklist")
+    if legs and (breaks or (not distance and cfg.model.hedge == "kalman")):
         from statarb.selection.panel import formation_panel
 
         panel = np.log(formation_panel(view, legs))
@@ -192,16 +210,21 @@ def freeze(
     frozen = []
     for params, scale in zip(pairset.pairs, scales, strict=True):
         state = None
+        tail = None
         if log_tr:
             y, x = log_tr[params.leg_y], log_tr[params.leg_x]
-            theta0, p0, obs_var = formation_start(y, x)
-            _, state = kalman_filter(y, x, cfg.model.kalman.delta, obs_var, theta0, p0)
+            if not distance and cfg.model.hedge == "kalman":
+                theta0, p0, obs_var = formation_start(y, x)
+                _, state = kalman_filter(y, x, cfg.model.kalman.delta, obs_var, theta0, p0)
+            if breaks:
+                window = cfg.rules.break_window_days
+                tail = (y[-window:].copy(), x[-window:].copy())
         hold = (
             None
             if distance
             else rules.max_holding_days(params.ou_half_life_days, cfg.rules.time_stop_half_lives)
         )
-        frozen.append(FrozenPair(params, state, scale, hold))
+        frozen.append(FrozenPair(params, state, scale, hold, tail))
     return FrozenWindow(
         pairset=pairset,
         pairs=tuple(frozen),
@@ -283,6 +306,36 @@ def _last_price(leg: dict[str, F64], t: int) -> float:
     return float(finite[-1]) if finite.size else math.nan
 
 
+def break_flags(
+    tail: tuple[F64, F64], y: dict[str, F64], x: dict[str, F64], window: int, threshold: float
+) -> npt.NDArray[np.bool_]:
+    """Days whose trailing ``window``-session Engle-Granger test no longer rejects (FR-26).
+
+    The test runs causally on log total-return indices: formation's last ``window`` days, then
+    the trading days through ``t``. The p-value is the larger of the two orderings, as in
+    selection; a day is broken when it exceeds ``threshold``. Missing data never breaks.
+    """
+    from statarb.selection.cointegration import engle_granger_batch
+
+    log_y = np.concatenate([tail[0], np.log(y["tr_index"])])
+    log_x = np.concatenate([tail[1], np.log(x["tr_index"])])
+    n = y["tr_index"].size
+    columns: list[F64] = []
+    usable = np.zeros(n, dtype=bool)
+    for t in range(n):
+        end = tail[0].size + t + 1
+        wy, wx = log_y[end - window : end], log_x[end - window : end]
+        usable[t] = bool(np.isfinite(wy).all() and np.isfinite(wx).all())
+        filler = np.linspace(0.0, 1.0, wy.size)
+        columns += [np.where(np.isfinite(wy), wy, filler), np.where(np.isfinite(wx), wx, -filler)]
+    panel = np.column_stack(columns)
+    pairs = np.arange(2 * n, dtype=np.int64).reshape(n, 2)
+    p = np.maximum(
+        engle_granger_batch(panel, pairs)[:, 1], engle_granger_batch(panel, pairs[:, ::-1])[:, 1]
+    )
+    return usable & (p > threshold)
+
+
 def run_window(
     frozen: FrozenWindow, view: TradingView, cfg: RunConfig, run_id: str = ""
 ) -> WindowResult:
@@ -299,7 +352,11 @@ def run_window(
     employed = np.zeros(n)
     exposure = np.zeros(n)
     open_count = np.zeros(n, dtype=np.int32)
+    turnover = np.zeros(n)
+    impact_cost = np.zeros(n)
     trades: list[dict[str, object]] = []
+    roundtrips: list[dict[str, object]] = []
+    policy = cfg.rules.break_policy
     for pair in frozen.pairs:
         p = pair.params
         pair_id = f"{p.leg_y}|{p.leg_x}"
@@ -307,14 +364,22 @@ def run_window(
         z, beta = _signal(pair, y, x, frozen.distance)
         dead, dead_reason = _end_of_life(y, x)
         horizon = n if dead is None else dead + 1
+        broken = None
+        if pair.tail is not None:
+            broken = break_flags(
+                pair.tail, y, x, cfg.rules.break_window_days, cfg.rules.break_pvalue
+            )[:horizon]
         signal, reason = rules.state_machine(
             z[:horizon],
             cfg.rules.entry_z,
             cfg.rules.exit_z,
-            cfg.rules.stop_z,
+            None if policy == "hold" else cfg.rules.stop_z,
             cfg.rules.exit_mode,
             pair.max_holding,
             close_at_end=True,
+            broken=broken,
+            break_close=policy in ("close_on_break", "close_and_blacklist"),
+            break_blacklist=policy == "close_and_blacklist",
         )
         target = np.zeros(n, dtype=np.int8)
         target[lag:horizon] = signal[: horizon - lag] if horizon > lag else 0
@@ -322,19 +387,25 @@ def run_window(
         gross = frozen.slot * cfg.sizing.gross_per_pair * pair.scale
         value_y = value_x = 0.0
         position = 0
+        trip_pnl = 0.0
+        trip_start = 0
         for t in range(n):
             if t > 0 and position != 0:
                 r_y, r_x = _leg_return(y, t), _leg_return(x, t)
-                pnl[t] += value_y * r_y + value_x * r_x
+                day = value_y * r_y + value_x * r_x
+                pnl[t] += day
+                trip_pnl += day
                 for value, leg_id in ((value_y, p.leg_y), (value_x, p.leg_x)):
                     if value < 0:
-                        borrow[t] += borrow_cost(
+                        fee = borrow_cost(
                             value,
                             frozen.legs[leg_id].fee_rate_annual,
                             sessions[t - 1],
                             sessions[t],
                             params.borrow_multiplier,
                         )
+                        borrow[t] += fee
+                        trip_pnl -= fee
                 employed[t] += frozen.slot * pair.scale
                 value_y *= 1.0 + r_y
                 value_x *= 1.0 + r_x
@@ -353,17 +424,29 @@ def run_window(
                         why = dead_reason
                     legs = ((p.leg_y, -value_y), (p.leg_x, -value_x))
                     value_y = value_x = 0.0
+                    entry_costs = 0.0
                 else:
                     w_y, w_x = leg_weights(wanted, float(beta[signal_day]), gross, frozen.distance)
+                    capped = participation_scale(
+                        (w_y, w_x), (frozen.legs[p.leg_y], frozen.legs[p.leg_x]), params
+                    )
+                    w_y, w_x = w_y * capped, w_x * capped
                     legs = ((p.leg_y, w_y), (p.leg_x, w_x))
                     value_y, value_x = w_y, w_x
                     why = "entry"
+                    entry_costs = 0.0
                 for leg_id, traded in legs:
                     if traded == 0.0:
                         continue
                     leg = frozen.legs[leg_id]
                     commission, spread, impact = trade_cost(traded, leg, params)
                     trading[t] += commission + spread + impact
+                    impact_cost[t] += impact
+                    turnover[t] += abs(traded)
+                    if wanted == 0:
+                        trip_pnl -= commission + spread + impact
+                    else:
+                        entry_costs += commission + spread + impact
                     trades.append(
                         {
                             "run_id": run_id,
@@ -383,6 +466,26 @@ def run_window(
                             "participation": participation(traded, leg, params),
                         }
                     )
+                if wanted == 0:
+                    slot = frozen.slot * pair.scale
+                    roundtrips.append(
+                        {
+                            "window_id": frozen.pairset.window.window_id,
+                            "pair_id": pair_id,
+                            "date_entry": sessions[trip_start],
+                            "date_exit": sessions[t],
+                            "holding_days": t - trip_start,
+                            "direction": position,
+                            "exit_reason": why,
+                            "half_life_days": p.ou_half_life_days,
+                            "slot_capital": slot,
+                            "pnl": trip_pnl,
+                            "ret_on_slot": trip_pnl / slot,
+                        }
+                    )
+                else:
+                    trip_start = t
+                    trip_pnl = -entry_costs
                 position = wanted
             if position != 0:
                 exposure[t] += abs(value_y) + abs(value_x)
@@ -407,12 +510,19 @@ def run_window(
             "employed": employed,
             "gross_exposure": exposure / capital,
             "n_open": open_count,
+            "turnover": turnover / capital,
+            "cost_impact": impact_cost / capital,
         }
     )
     trade_frame = (
         pl.DataFrame(trades, schema=TRADE_COLUMNS) if trades else pl.DataFrame(schema=TRADE_COLUMNS)
     )
-    return WindowResult(frozen.pairset.window.window_id, daily, trade_frame)
+    trips = (
+        pl.DataFrame(roundtrips, schema=ROUNDTRIP_COLUMNS)
+        if roundtrips
+        else pl.DataFrame(schema=ROUNDTRIP_COLUMNS)
+    )
+    return WindowResult(frozen.pairset.window.window_id, daily, trade_frame, trips)
 
 
 def combine(dailies: Sequence[pl.DataFrame]) -> pl.DataFrame:
@@ -433,6 +543,8 @@ def combine(dailies: Sequence[pl.DataFrame]) -> pl.DataFrame:
             pl.col("pnl_net").sort().sum().alias("_pnl"),
             pl.col("employed").sort().sum().alias("_employed"),
             pl.col("gross_exposure").sort().mean(),
+            pl.col("turnover").sort().mean(),
+            pl.col("cost_impact").sort().mean(),
             pl.col("n_open").sum(),
             pl.len().alias("windows_active"),
         )
@@ -449,6 +561,8 @@ def combine(dailies: Sequence[pl.DataFrame]) -> pl.DataFrame:
         "cost_trading",
         "cost_borrow",
         "gross_exposure",
+        "turnover",
+        "cost_impact",
         pl.col("n_open").cast(pl.Int32),
         pl.col("windows_active").cast(pl.Int32),
     )

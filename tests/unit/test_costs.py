@@ -17,6 +17,7 @@ from statarb.costs import (
     corwin_schultz,
     half_spread,
     participation,
+    participation_scale,
     trade_cost,
     trade_costs,
 )
@@ -142,3 +143,16 @@ def test_sizing() -> None:
     assert pair_scales([None, 5.0], [0.1, 0.2], "vol_target") == pytest.approx([4 / 3, 2 / 3])
     assert pair_scales([None, None], [0.1, 0.2], "inverse_half_life") == [1.0, 1.0]
     assert pair_scales([], [], "vol_target") == []
+
+
+def test_participation_cap_scales_the_larger_leg_to_the_limit() -> None:
+    thin = LegCostInputs(0.0005, 2_000_000.0, 0.02, 0.01)
+    # 0.05 of 10m = 500k: 1% of the liquid leg's ADV, 25% of the thin leg's.
+    scale = participation_scale((0.05, -0.05), (LEG, thin), PARAMS)
+    assert scale == pytest.approx(0.4)
+    assert participation(0.05 * scale, thin, PARAMS) == pytest.approx(0.10)
+    assert participation_scale((0.001, -0.001), (LEG, thin), PARAMS) == 1.0
+    dry = LegCostInputs(0.0005, 0.0, 0.02, 0.01)
+    assert participation_scale((0.01,), (dry,), PARAMS) == 0.0
+    off = CostParams(impact_on=False, aum_usd=10_000_000.0)
+    assert participation_scale((0.05, -0.05), (LEG, thin), off) == 1.0

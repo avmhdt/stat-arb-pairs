@@ -136,7 +136,9 @@ class RulesConfig(_Section):
     exit_z: float = Field(default=0.5, ge=0.0)
     stop_z: float | None = 4.0
     time_stop_half_lives: float | None = 3.0
-    break_policy: Literal["hold", "stop_only"] = "stop_only"
+    break_policy: Literal["hold", "stop_only", "close_on_break", "close_and_blacklist"] = (
+        "stop_only"
+    )
     break_window_days: int = 60
     break_pvalue: float = 0.20
 

@@ -147,6 +147,12 @@ def ingest_borrow(
     _step(lambda: pipeline.ingest_borrow(get_settings(), source))
 
 
+@ingest_app.command("french")
+def ingest_french() -> None:
+    """Ken French daily short-term reversal and market factors (FR-25)."""
+    _step(lambda: pipeline.ingest_french(get_settings()))
+
+
 @app.command()
 def build(
     tables: Annotated[
@@ -366,3 +372,123 @@ def evaluate_al_comparison(
     )
     comparison.figure(yearly, figure_path)
     typer.echo(f"wrote al_vs_pairs*.csv and al_vs_paper.csv to {out_dir.as_posix()}")
+
+
+def _specs(runs: str) -> list[str]:
+    return [item.strip() for item in runs.split(",") if item.strip()]
+
+
+RunsOption = Annotated[
+    str, typer.Option("--runs", help="Comma-separated run ids, optionally label=run_id.")
+]
+
+
+@evaluate_app.command("decay")
+def evaluate_decay(runs: RunsOption) -> None:
+    """Sub-period returns, rolling 36-month Sharpe and the time trend (FR-21, AC-H-02)."""
+    from statarb.reports import economics
+
+    table = economics.decay(get_settings().results_dir / "runs", _specs(runs))
+    typer.echo(f"decay_by_period.csv: {table.height} rows")
+
+
+@evaluate_app.command("persistence")
+def evaluate_persistence(runs: RunsOption) -> None:
+    """Out-of-sample cointegration of selected pairs against a matched baseline (FR-22)."""
+    from statarb.reports import economics
+
+    settings = get_settings()
+    table = economics.persistence_tables(
+        settings.results_dir / "runs", settings.data_dir / "processed", _specs(runs)
+    )
+    typer.echo(f"oos_persistence.csv: {table.height} rows")
+
+
+@evaluate_app.command("breakeven")
+def evaluate_breakeven(runs: RunsOption) -> None:
+    """Break-even cost per side with bootstrap intervals and borrow sensitivity (FR-23)."""
+    from statarb.reports import economics
+
+    table = economics.break_even_tables(get_settings().results_dir / "runs", _specs(runs))
+    typer.echo(f"break_even.csv: {table.height} rows")
+
+
+@evaluate_app.command("capacity")
+def evaluate_capacity(runs: RunsOption) -> None:
+    """Net Sharpe and return against AUM, last five years (FR-24)."""
+    from statarb.reports import economics
+
+    table = economics.capacity_tables(get_settings().results_dir / "runs", _specs(runs))
+    typer.echo(f"capacity.csv: {table.height} rows")
+
+
+@evaluate_app.command("crowding")
+def evaluate_crowding(runs: RunsOption) -> None:
+    """Reversal-factor exposure, event drawdowns, overlap, concentration, trends (FR-25)."""
+    from statarb.reports import economics
+
+    settings = get_settings()
+    factors = settings.data_dir / "raw" / "french" / "factors.parquet"
+    table = economics.crowding_tables(settings.results_dir / "runs", factors, _specs(runs))
+    typer.echo(f"crowding.csv: {table.height} rows")
+
+
+@evaluate_app.command("policies")
+def evaluate_policies(runs: RunsOption) -> None:
+    """Cointegration-break policies on the same windows (FR-26, AC-H-08)."""
+    from statarb.reports import economics
+
+    table = economics.policy_table(get_settings().results_dir / "runs", _specs(runs))
+    typer.echo(f"break_policies.csv: {table.height} rows")
+
+
+@evaluate_app.command("sizing")
+def evaluate_sizing(runs: RunsOption) -> None:
+    """Sizing schemes by half-life bucket (FR-31, AC-H-09)."""
+    from statarb.reports import economics
+
+    table = economics.sizing_table(get_settings().results_dir / "runs", _specs(runs))
+    typer.echo(f"sizing_half_life.csv: {table.height} rows")
+
+
+@evaluate_app.command("deflated-sharpe")
+def evaluate_deflated_sharpe(
+    headline: Annotated[str, typer.Option("--headline", help="Comma-separated family=run_id.")],
+) -> None:
+    """PSR and DSR per family from the trial log (FR-28, AC-H-10)."""
+    from statarb.reports import economics
+
+    chosen = dict(item.split("=", 1) for item in _specs(headline))
+    table = economics.dsr_table(get_settings().results_dir / "trial_log.csv", chosen)
+    typer.echo(f"deflated_sharpe.csv: {table.height} rows")
+
+
+@evaluate_app.command("survivorship")
+def evaluate_survivorship(
+    pairs: Annotated[str, typer.Option("--pairs", help="Comma-separated full_run:survivors_run.")],
+) -> None:
+    """Full against survivors-only universe returns (AC-W-09)."""
+    from statarb.reports import economics
+
+    couples = [tuple(item.split(":", 1)) for item in _specs(pairs)]
+    table = economics.survivorship_table(get_settings().results_dir / "runs", couples)  # type: ignore[arg-type]
+    typer.echo(f"survivorship_bias.csv: {table.height} rows")
+
+
+@evaluate_app.command("borrow")
+def evaluate_borrow() -> None:
+    """The latest IBKR snapshot's fees by size bucket against the assumed schedule (FR-34)."""
+    from statarb.data.build import borrow_rates
+    from statarb.reports import economics
+
+    settings = get_settings()
+    snapshots = sorted((settings.data_dir / "raw" / "ibkr").glob("snapshot=*"))
+    if not snapshots:
+        typer.echo("no IBKR snapshot; run statarb ingest borrow --source ibkr", err=True)
+        raise typer.Exit(code=2)
+    table = economics.borrow_table(
+        snapshots[-1],
+        settings.data_dir / "processed",
+        borrow_rates(Path("configs/borrow_schedule.yaml")),
+    )
+    typer.echo(f"borrow_assumed_vs_ibkr.csv: {table.height} rows")

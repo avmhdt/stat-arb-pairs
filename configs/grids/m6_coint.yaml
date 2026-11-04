@@ -1,0 +1,10 @@
+# M6 cointegration runs (headline, default costs): baseline, survivors-only universe
+# (AC-W-09), the other break policies (FR-26) and sizing schemes (FR-31).
+members:
+  - {run.name: coint_eg_kalman_sic2}
+  - {universe.survivors_only: true}
+  - {rules.break_policy: hold}
+  - {rules.break_policy: close_on_break}
+  - {rules.break_policy: close_and_blacklist}
+  - {sizing.scheme: inverse_half_life}
+  - {sizing.scheme: vol_target}

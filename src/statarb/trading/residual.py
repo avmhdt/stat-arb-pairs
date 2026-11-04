@@ -32,7 +32,13 @@ import numpy as np
 import numpy.typing as npt
 import polars as pl
 
-from statarb.costs import LegCostInputs, borrow_cost, participation, trade_cost
+from statarb.costs import (
+    LegCostInputs,
+    borrow_cost,
+    participation,
+    participation_scale,
+    trade_cost,
+)
 from statarb.models.residuals import eigenportfolios, regression_residuals, s_scores
 from statarb.selection.pairs import PairSet
 from statarb.trading.engine import TRADE_COLUMNS, WindowResult, cost_params, leg_inputs
@@ -288,6 +294,8 @@ def run_al_window(
     exposure = np.zeros(n)
     capital = np.empty(n)
     count = np.zeros(n, dtype=np.int32)
+    turnover = np.zeros(n)
+    impact_cost = np.zeros(n)
     trades: list[dict[str, object]] = []
     held_beta = np.zeros(k)
     position = np.zeros(k, dtype=np.int8)
@@ -349,11 +357,14 @@ def run_al_window(
                 reason = "entry"
                 held_beta[i] = float(beta_hist[signal_day, i])
                 sizes[i] = equity * cfg.al.gross_per_side / expected
+                sizes[i] *= participation_scale((sizes[i],), (frozen.legs[ids[i]],), params)
                 traded = float(new * sizes[i])
             position[i] = new
             leg = frozen.legs[ids[i]]
             commission, spread, impact = trade_cost(traded, leg, params)
             trading[t] += commission + spread + impact
+            impact_cost[t] += impact
+            turnover[t] += abs(traded)
             trades.append(
                 _trade_row(
                     run_id,
@@ -381,6 +392,8 @@ def run_al_window(
             leg = frozen.legs[name]
             commission, spread, impact = trade_cost(hedge_trade, leg, params)
             trading[t] += commission + spread + impact
+            impact_cost[t] += impact
+            turnover[t] += abs(hedge_trade)
             trades.append(
                 _trade_row(
                     run_id,
@@ -416,6 +429,8 @@ def run_al_window(
             "employed": employed,
             "gross_exposure": exposure / capital,
             "n_open": count,
+            "turnover": turnover / capital,
+            "cost_impact": impact_cost / capital,
         }
     )
     frame = (

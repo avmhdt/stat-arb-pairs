@@ -1,0 +1,3 @@
+run,trend_per_decade,trend_t_newey_west,post_2002_mean_monthly,post_2002_ci_low,post_2002_ci_high
+GGR distance gross,-0.000813,-1.086819,0.001315,0.000261,0.002369
+EG-Kalman net,0.000033,0.693581,-0.000047,-0.000104,0.000011
