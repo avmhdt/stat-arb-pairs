@@ -234,3 +234,13 @@ def test_needs_build(settings: Settings) -> None:
     assert reproduce.needs_build(local)
     write_processed(local.data_dir / "processed", "headline")
     assert reproduce.needs_build(local)  # the fixture's manifest hash is not the raw one
+
+
+def test_study_figures_are_deterministic(tmp_path: Path) -> None:
+    from statarb.reports.study import example_pair_figure, protocol_figure
+
+    for draw in (protocol_figure, example_pair_figure):
+        draw(tmp_path / "a")
+        first = (tmp_path / "a.svg").read_bytes(), (tmp_path / "a.png").read_bytes()
+        draw(tmp_path / "a")
+        assert ((tmp_path / "a.svg").read_bytes(), (tmp_path / "a.png").read_bytes()) == first

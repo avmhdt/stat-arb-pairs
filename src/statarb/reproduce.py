@@ -20,6 +20,10 @@ from statarb.data import dq, manifest, pipeline, schemas
 from statarb.settings import Settings
 
 PROVIDERS = {"headline": "sharadar", "prototype": "free"}
+STUDIES = {
+    "headline": Path("configs") / "study.yaml",
+    "prototype": Path("configs") / "study_prototype.yaml",
+}
 TIMINGS = Path("reports") / "run_times.csv"
 
 
@@ -85,7 +89,7 @@ def reproduce_all(
     echo: Callable[[str], None] = print,
 ) -> list[str]:
     """Run every step; returns the summary lines. Timings go to ``reports/run_times.csv``."""
-    from statarb.reports.study import Paths, build_all
+    from statarb.reports.study import build_all, paths_for
     from statarb.study import StudyError, find_run, load_study
     from statarb.trading.backtest import run_backtest
 
@@ -126,7 +130,7 @@ def reproduce_all(
         echo(f"run {name}: {result.run_id} in {seconds / 60:.1f} min")
     if timings:
         _write_timings(timings, profile)
-    paths = Paths(local.results_dir, processed, local.data_dir / "raw")
+    paths = paths_for(local.results_dir, local.data_dir, profile)
     try:
         ids = build_all(study, paths, profile)
     except StudyError as error:

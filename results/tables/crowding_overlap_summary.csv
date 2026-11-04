@@ -1,0 +1,7 @@
+run_a,run_b,years,mean_jaccard,max_jaccard
+GGR distance,EG-Kalman,23,0.005782,0.016736
+GGR distance,A-L PCA,27,0.084969,0.163685
+GGR distance,A-L ETF,27,0.084949,0.163393
+EG-Kalman,A-L PCA,23,0.007155,0.023967
+EG-Kalman,A-L ETF,23,0.007153,0.024007
+A-L PCA,A-L ETF,27,0.997922,1.000000

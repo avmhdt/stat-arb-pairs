@@ -43,6 +43,21 @@ class Paths:
         return self.results / "trial_log.csv"
 
 
+def paths_for(results: Path, data_root: Path, profile: str, doc: Path | None = None) -> Paths:
+    """Headline outputs go to ``results/tables`` and ``reports/figures``; prototype outputs
+    to their ``prototype/`` subfolders, so a prototype run never overwrites the memo's."""
+    sub = Path() if profile == "headline" else Path("prototype")
+    default_doc = Path("docs") / "multiple_testing.md"
+    return Paths(
+        results,
+        data_root / "processed",
+        data_root / "raw",
+        tables=TABLES / sub,
+        figures=FIGURES / sub,
+        doc=doc or (default_doc if profile == "headline" else TABLES / sub / "fdr_summary.md"),
+    )
+
+
 def replication_tables(
     paths: Paths,
     ids: list[str],
@@ -216,37 +231,47 @@ def build_all(study: Study, paths: Paths, profile: str = "headline") -> dict[str
     def plain(names: list[str]) -> list[str]:
         return [ids[name] for name in names]
 
-    fdr_name = study.runs[t["fdr"]].resolve().run.name
-    write_fdr_outputs(
-        {fdr_name: paths.runs / ids[t["fdr"]] / "pairs.parquet"}, paths.tables, paths.doc, profile
-    )
-    replication_tables(paths, plain(t["replication"]), paths.processed)
-    al_tables(paths, plain(t["al_comparison"]))
-    economics.decay(paths.runs, labelled(t["decay"]), paths.tables, paths.figures)
-    economics.persistence_tables(
-        paths.runs, paths.processed, labelled(t["persistence"]), paths.tables, paths.figures
-    )
-    economics.break_even_tables(paths.runs, labelled(t["economics"]), paths.tables, paths.figures)
-    economics.capacity_tables(paths.runs, labelled(t["economics"]), paths.tables, paths.figures)
-    economics.crowding_tables(
-        paths.runs,
-        paths.raw / "french" / "factors.parquet",
-        labelled(t["economics"]),
-        paths.tables,
-        paths.figures,
-    )
-    economics.policy_table(paths.runs, plain(t["policies"]), paths.tables)
-    economics.sizing_table(paths.runs, plain(t["sizing"]), paths.tables, paths.figures)
-    economics.dsr_table(
-        paths.log,
-        {family: ids[name] for family, name in t["deflated_sharpe"].items()},
-        paths.tables,
-    )
-    economics.survivorship_table(
-        paths.runs, [(ids[a], ids[b]) for a, b in t["survivorship"]], paths.tables
-    )
+    if "fdr" in t:
+        fdr_name = study.runs[t["fdr"]].resolve().run.name
+        write_fdr_outputs(
+            {fdr_name: paths.runs / ids[t["fdr"]] / "pairs.parquet"},
+            paths.tables,
+            paths.doc,
+            profile,
+        )
+    if "replication" in t:
+        replication_tables(paths, plain(t["replication"]), paths.processed)
+    if "al_comparison" in t:
+        al_tables(paths, plain(t["al_comparison"]))
+    if "decay" in t:
+        economics.decay(paths.runs, labelled(t["decay"]), paths.tables, paths.figures)
+    if "persistence" in t:
+        economics.persistence_tables(
+            paths.runs, paths.processed, labelled(t["persistence"]), paths.tables, paths.figures
+        )
+    if "economics" in t:
+        specs = labelled(t["economics"])
+        economics.break_even_tables(paths.runs, specs, paths.tables, paths.figures)
+        economics.capacity_tables(paths.runs, specs, paths.tables, paths.figures)
+        factors = paths.raw / "french" / "factors.parquet"
+        if factors.exists():
+            economics.crowding_tables(paths.runs, factors, specs, paths.tables, paths.figures)
+    if "policies" in t:
+        economics.policy_table(paths.runs, plain(t["policies"]), paths.tables)
+    if "sizing" in t:
+        economics.sizing_table(paths.runs, plain(t["sizing"]), paths.tables, paths.figures)
+    if "deflated_sharpe" in t:
+        economics.dsr_table(
+            paths.log,
+            {family: ids[name] for family, name in t["deflated_sharpe"].items()},
+            paths.tables,
+        )
+    if "survivorship" in t:
+        economics.survivorship_table(
+            paths.runs, [(ids[a], ids[b]) for a, b in t["survivorship"]], paths.tables
+        )
     snapshots = sorted((paths.raw / "ibkr").glob("snapshot=*"))
-    if snapshots:
+    if snapshots and profile == "headline":
         from statarb.data.build import borrow_rates
 
         economics.borrow_table(
@@ -255,6 +280,9 @@ def build_all(study: Study, paths: Paths, profile: str = "headline") -> dict[str
             borrow_rates(Path("configs") / "borrow_schedule.yaml"),
             paths.tables,
         )
-    protocol_figure(paths.figures / "protocol")
-    example_pair_figure(paths.figures / "example_pair")
+    if "kalman" in t:
+        economics.kalman_table(paths.runs, plain(t["kalman"]), paths.tables)
+    if profile == "headline":
+        protocol_figure(paths.figures / "protocol")
+        example_pair_figure(paths.figures / "example_pair")
     return ids

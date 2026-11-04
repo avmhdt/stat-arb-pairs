@@ -209,27 +209,32 @@ def select(
     typer.echo(f"{result.windows} windows, {result.rows:,} pair rows -> {result.path.as_posix()}")
 
 
+StudyOption = Annotated[
+    Path | None,
+    typer.Option(
+        "--study", help="Study manifest (default: configs/study.yaml, or study_prototype.yaml)."
+    ),
+]
+
+
 @app.command()
 def report(
     profile: Annotated[Literal["headline", "prototype"], typer.Option("--profile")] = "headline",
-    study: Annotated[Path, typer.Option("--study", help="Study manifest.")] = Path(
-        "configs/study.yaml"
-    ),
-    doc: Annotated[Path, typer.Option("--doc")] = Path("docs/multiple_testing.md"),
+    study: StudyOption = None,
+    doc: Annotated[Path | None, typer.Option("--doc")] = None,
 ) -> None:
-    """Rebuild every table and figure the memo cites from the study's runs (FR-29, FR-30)."""
-    from statarb.reports.study import Paths, build_all
+    """Rebuild every table and figure the memo cites from the study's runs (FR-29, FR-30).
+
+    Prototype outputs go to ``results/tables/prototype`` and ``reports/figures/prototype``.
+    """
+    from statarb.reports.study import build_all, paths_for
+    from statarb.reproduce import STUDIES, profile_settings
     from statarb.study import StudyError, load_study
 
-    settings = get_settings()
-    paths = Paths(
-        settings.results_dir,
-        settings.data_dir / "processed",
-        settings.data_dir / "raw",
-        doc=doc,
-    )
+    local = profile_settings(get_settings(), profile)
+    paths = paths_for(local.results_dir, local.data_dir, profile, doc)
     try:
-        ids = build_all(load_study(study), paths, profile)
+        ids = build_all(load_study(study or STUDIES[profile]), paths, profile)
     except (StudyError, FileNotFoundError, ValueError) as error:
         typer.echo(str(error), err=True)
         raise typer.Exit(code=2) from error
@@ -242,19 +247,19 @@ def report(
 @app.command()
 def reproduce(
     profile: Annotated[Literal["headline", "prototype"], typer.Option("--profile")] = "headline",
-    study: Annotated[Path, typer.Option("--study", help="Study manifest.")] = Path(
-        "configs/study.yaml"
-    ),
+    study: StudyOption = None,
     workers: Annotated[int, typer.Option("--workers", min=1, max=8)] = 3,
     reuse: Annotated[
         bool, typer.Option("--reuse", help="Skip runs already complete for this data.")
     ] = False,
 ) -> None:
     """Ingest (cached files are kept), build, DQ, every study run, then the report (FR-29)."""
-    from statarb.reproduce import ReproduceError, reproduce_all
+    from statarb.reproduce import STUDIES, ReproduceError, reproduce_all
 
     try:
-        lines = reproduce_all(get_settings(), profile, study, workers, reuse, echo=typer.echo)
+        lines = reproduce_all(
+            get_settings(), profile, study or STUDIES[profile], workers, reuse, echo=typer.echo
+        )
     except ReproduceError as error:
         typer.echo(str(error), err=True)
         raise typer.Exit(code=1) from error

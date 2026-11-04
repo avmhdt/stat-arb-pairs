@@ -39,6 +39,12 @@ runs:
   coint_inverse_half_life: {config: configs/coint_eg_kalman.yaml, set: [sizing.scheme=inverse_half_life]}
   coint_vol_target: {config: configs/coint_eg_kalman.yaml, set: [sizing.scheme=vol_target]}
 
+  # The hedge (M7, interview question on delta and rolling OLS): static formation OLS and
+  # the Kalman filter an order of magnitude either side of the spec's delta = 1e-4.
+  coint_static_hedge: {config: configs/coint_eg_kalman.yaml, set: [model.hedge=static]}
+  coint_delta_1e-5: {config: configs/coint_eg_kalman.yaml, set: [model.kalman.delta=1.0e-5]}
+  coint_delta_1e-3: {config: configs/coint_eg_kalman.yaml, set: [model.kalman.delta=1.0e-3]}
+
   # GGR distance over 1998-2025 (M6): gross, survivors only, and at the project's costs with
   # each sizing scheme.
   ggr_gross: {config: configs/ggr_distance.yaml, set: [data.end=2025-12-31]}
@@ -58,4 +64,5 @@ tables:
   sizing: [coint_baseline, coint_inverse_half_life, coint_vol_target, ggr_costs, ggr_costs_inverse_half_life, ggr_costs_vol_target]
   deflated_sharpe: {pairs_distance: ggr_costs, pairs_coint: coint_baseline, al_pca: al_pca_model, al_etf: al_etf_model}
   survivorship: [[coint_baseline, coint_survivors], [ggr_gross, ggr_survivors]]
+  kalman: [coint_static_hedge, coint_delta_1e-5, coint_baseline, coint_delta_1e-3]
   example_pair: coint_baseline

@@ -1,0 +1,13 @@
+# The prototype profile's study (AC-W-11): the local Stooq snapshot with EDGAR current SIC.
+# Stooq has no share counts, so universes rank by dollar volume; the data are
+# survivorship-biased and every output is labelled prototype. Outputs go to
+# results/tables/prototype and reports/figures/prototype.
+
+runs:
+  proto_distance: {config: configs/ggr_distance.yaml, set: [run.data_profile=prototype, data.provider=free, data.start=2010-01-01, data.end=2025-12-31, universe.rank_by=dollar_volume, universe.top_n=1000]}
+  proto_coint: {config: configs/coint_eg_kalman.yaml, set: [run.data_profile=prototype, data.provider=free, data.start=2010-01-01, data.end=2025-12-31, universe.rank_by=dollar_volume]}
+
+tables:
+  fdr: proto_coint
+  decay: {GGR distance gross (prototype): proto_distance, EG-Kalman net (prototype): proto_coint}
+  persistence: {distance: proto_distance, cointegration: proto_coint}

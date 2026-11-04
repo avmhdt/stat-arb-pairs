@@ -28,4 +28,11 @@ Performance targets (NFR-01, NFR-02) are "meet, or report the actual time with t
 | Engle-Granger on 20,000 pairs, both orderings (40,000 tests), one process | < 60 s for 20,000 | 1.26 s mean |
 | Headline cointegration selection, 319 windows, 6 worker processes | not set | about 3 minutes |
 
+| GGR replication run (1998-2002, 43 windows), 3 worker processes | not set | 1.6 to 4.0 minutes |
+| GGR distance over 1998-2025 (319 monthly windows, every common stock), 3 workers (NFR-02) | < 2 h for about 480 windows | 14.7 minutes gross, 11.0 at the cost model |
+| Cointegration headline (319 windows, top 1,000, within SIC2), 3 workers | not set | 3.3 minutes |
+| `statarb reproduce --profile headline`: ingest (cached), DQ, all 28 study runs, report | not set | 2 h 1 min (2026-11-04, 3 workers, recorders running) |
+
+Run times per study run are in `reports/run_times.csv`, written by `statarb reproduce`. NFR-02's target is for GGR's 1962-2002 sample, which this data does not reach; the 1998-2025 run has 319 windows instead of about 480.
+
 Details in `reports/benchmarks.json` (`uv run pytest -m slow tests/benchmarks --benchmark-json reports/benchmarks.json`).
