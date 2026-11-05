@@ -25,7 +25,8 @@ from statarb.trading.backtest import run_backtest
 from unit.test_data_layer import write_processed
 
 REPO = Path(__file__).resolve().parents[2]
-GOLDEN = "c2c30413d0558aeb74922bcf"  # rounded_digest() prefix, not a secret  # pragma: allowlist secret
+# First 24 hex of rounded_digest() on the synthetic run.
+GOLDEN = "c2c30413d0558aeb74922bcf"  # pragma: allowlist secret
 
 
 def _cfg() -> RunConfig:
