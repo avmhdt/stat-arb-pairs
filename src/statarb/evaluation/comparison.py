@@ -195,7 +195,6 @@ def figure(by_year_table: pl.DataFrame, path: Path) -> None:
     )
     ax.legend(fontsize=8)
     fig.tight_layout()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(path.with_suffix(".png"), dpi=300)
-    fig.savefig(path.with_suffix(".svg"))
-    plt.close(fig)
+    from statarb.reports.figures import save
+
+    save(fig, path)

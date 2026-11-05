@@ -1,9 +1,9 @@
 strategy,lag,paper_period,our_first,our_last,paper_sharpe,our_sharpe,same_sign,source
-al_pca,0,1997-2007,1999-01-04,2007-12-31,1.440000,1.415160,true,"Avellaneda and Lee working paper, version 15 June 2009, abstract (p. 1)"
 al_pca,1,1997-2007,1999-01-04,2007-12-31,1.440000,0.512474,true,"Avellaneda and Lee working paper, version 15 June 2009, abstract (p. 1)"
-al_pca,0,2003-2007,2003-01-02,2007-12-31,0.900000,0.150544,true,"Avellaneda and Lee working paper, version 15 June 2009, abstract (p. 1)"
+al_pca,0,1997-2007,1999-01-04,2007-12-31,1.440000,1.415160,true,"Avellaneda and Lee working paper, version 15 June 2009, abstract (p. 1)"
 al_pca,1,2003-2007,2003-01-02,2007-12-31,0.900000,-0.742774,false,"Avellaneda and Lee working paper, version 15 June 2009, abstract (p. 1)"
-al_etf,0,2003-2007,2003-01-02,2007-12-31,0.600000,0.228921,true,"Avellaneda and Lee working paper, version 15 June 2009, text below Table 5 (p. 26)"
+al_pca,0,2003-2007,2003-01-02,2007-12-31,0.900000,0.150544,true,"Avellaneda and Lee working paper, version 15 June 2009, abstract (p. 1)"
 al_etf,1,2003-2007,2003-01-02,2007-12-31,0.600000,-0.117792,false,"Avellaneda and Lee working paper, version 15 June 2009, text below Table 5 (p. 26)"
-al_etf,0,1997-2007,1999-01-04,2007-12-31,1.100000,0.840773,true,"Avellaneda and Lee working paper, version 15 June 2009, abstract (p. 1)"
+al_etf,0,2003-2007,2003-01-02,2007-12-31,0.600000,0.228921,true,"Avellaneda and Lee working paper, version 15 June 2009, text below Table 5 (p. 26)"
 al_etf,1,1997-2007,1999-01-04,2007-12-31,1.100000,0.356959,true,"Avellaneda and Lee working paper, version 15 June 2009, abstract (p. 1)"
+al_etf,0,1997-2007,1999-01-04,2007-12-31,1.100000,0.840773,true,"Avellaneda and Lee working paper, version 15 June 2009, abstract (p. 1)"

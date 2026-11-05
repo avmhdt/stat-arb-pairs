@@ -13,6 +13,7 @@ def _plt() -> Any:
     import matplotlib
 
     matplotlib.use("Agg")
+    matplotlib.rcParams["svg.hashsalt"] = "statarb"
     import matplotlib.pyplot as plt
 
     return plt
@@ -20,10 +21,12 @@ def _plt() -> Any:
 
 def save(fig: object, path: Path) -> None:
     """Write ``path.png`` and ``path.svg``."""
+    plt = _plt()  # sets the SVG hash salt before anything is written
     path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(path.with_suffix(".png"), dpi=300)  # type: ignore[attr-defined]
-    fig.savefig(path.with_suffix(".svg"))  # type: ignore[attr-defined]
-    _plt().close(fig)
+    # No timestamps, fixed ids: regenerating an unchanged figure leaves git clean.
+    fig.savefig(path.with_suffix(".png"), dpi=300, metadata={"Software": None})  # type: ignore[attr-defined]
+    fig.savefig(path.with_suffix(".svg"), metadata={"Date": None})  # type: ignore[attr-defined]
+    plt.close(fig)
 
 
 def lines(

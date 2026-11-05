@@ -158,3 +158,11 @@ def test_edgar_company_tickers_and_current_sic(tmp_path: Path) -> None:
     )
     assert sic == {320193: 3571, 789019: None}
     assert sum(path.startswith("/submissions/") for path in seen) == 2
+
+
+def test_stooq_empty_file_has_no_rows(tmp_path: Path) -> None:
+    path = tmp_path / "empty.us.txt"
+    path.write_text("")
+    frame = stooq.read_daily(path)
+    assert frame.height == 0
+    assert frame.columns == ["date", "open", "high", "low", "close", "volume"]

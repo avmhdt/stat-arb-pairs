@@ -11,7 +11,6 @@ from typing import Annotated, Literal
 import typer
 
 from statarb import __version__
-from statarb.config import RunConfig
 from statarb.data import build as build_tables
 from statarb.data import dq, pipeline
 from statarb.log import configure_logging
@@ -210,23 +209,62 @@ def select(
     typer.echo(f"{result.windows} windows, {result.rows:,} pair rows -> {result.path.as_posix()}")
 
 
+StudyOption = Annotated[
+    Path | None,
+    typer.Option(
+        "--study", help="Study manifest (default: configs/study.yaml, or study_prototype.yaml)."
+    ),
+]
+
+
 @app.command()
 def report(
     profile: Annotated[Literal["headline", "prototype"], typer.Option("--profile")] = "headline",
-    doc: Annotated[Path, typer.Option("--doc")] = Path("docs/multiple_testing.md"),
+    study: StudyOption = None,
+    doc: Annotated[Path | None, typer.Option("--doc")] = None,
 ) -> None:
-    """Regenerate the aggregate tables and generated doc blocks from results/ (FR-29, FR-30)."""
-    from statarb.reports.tables import write_fdr_outputs
+    """Rebuild every table and figure the memo cites from the study's runs (FR-29, FR-30).
 
-    settings = get_settings()
+    Prototype outputs go to ``results/tables/prototype`` and ``reports/figures/prototype``.
+    """
+    from statarb.reports.study import build_all, paths_for
+    from statarb.reproduce import STUDIES, profile_settings
+    from statarb.study import StudyError, load_study
+
+    local = profile_settings(get_settings(), profile)
+    paths = paths_for(local.results_dir, local.data_dir, profile, doc)
     try:
-        table = write_fdr_outputs(
-            settings.results_dir / "runs", settings.results_dir / "tables", doc, profile
-        )
-    except (FileNotFoundError, ValueError) as error:
+        ids = build_all(load_study(study or STUDIES[profile]), paths, profile)
+    except (StudyError, FileNotFoundError, ValueError) as error:
         typer.echo(str(error), err=True)
         raise typer.Exit(code=2) from error
-    typer.echo(f"fdr_by_window.csv: {table.height} rows; {doc.as_posix()} updated")
+    typer.echo(
+        f"{len(ids)} runs resolved ({paths.tables.as_posix()}/study_runs.csv); tables in "
+        f"{paths.tables.as_posix()}, figures in {paths.figures.as_posix()}"
+    )
+
+
+@app.command()
+def reproduce(
+    profile: Annotated[Literal["headline", "prototype"], typer.Option("--profile")] = "headline",
+    study: StudyOption = None,
+    workers: Annotated[int, typer.Option("--workers", min=1, max=8)] = 3,
+    reuse: Annotated[
+        bool, typer.Option("--reuse", help="Skip runs already complete for this data.")
+    ] = False,
+) -> None:
+    """Ingest (cached files are kept), build, DQ, every study run, then the report (FR-29)."""
+    from statarb.reproduce import STUDIES, ReproduceError, reproduce_all
+
+    try:
+        lines = reproduce_all(
+            get_settings(), profile, study or STUDIES[profile], workers, reuse, echo=typer.echo
+        )
+    except ReproduceError as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(code=1) from error
+    for line in lines:
+        typer.echo(line)
 
 
 def _run_one(config: Path, overrides: list[str], workers: int, note: str = "") -> None:
@@ -301,43 +339,15 @@ def evaluate_replication(
         "reports/figures/ggr_replication"
     ),
 ) -> None:
-    """GGR (2006) replication table and figure (FR-20, AC-H-01)."""
-    import json
-
-    import polars as pl
-
-    from statarb.evaluation import replication
+    """GGR (2006) replication table, bounce table and figure (FR-20, AC-H-01)."""
+    from statarb.reports.study import Paths, replication_tables
 
     settings = get_settings()
+    paths = Paths(settings.results_dir, settings.data_dir / "processed", settings.data_dir / "raw")
     ids = [rid.strip() for rid in runs.split(",") if rid.strip()]
-    loaded = [replication.read_run(settings.results_dir / "runs", rid) for rid in ids]
-    table = replication.replication_table(loaded, pl.read_csv(replication.TARGETS))
-    out.parent.mkdir(parents=True, exist_ok=True)
-    table.write_csv(out, float_precision=6)
-    replication.figure(table, figure_path)
-    result = replication.verdict(table)
-    text = json.dumps(result, indent=2, sort_keys=True)
-    out.with_suffix(".json").write_text(text + "\n", encoding="utf-8")
-    if {run.wait for run in loaded} == {"no_wait", "wait_one_day"}:
-        from statarb.trading.backtest import load_for
-
-        cfg = _config_from_params(settings.results_dir / "runs" / loaded[0].run_id / "config.yaml")
-        data = load_for(cfg, settings.data_dir / "processed")
-        bounce = replication.bounce_table(settings.results_dir / "runs", loaded, table, data)
-        bounce.write_csv(out.with_name("ggr_bounce.csv"), float_precision=6)
-        typer.echo(f"bounce table: {out.with_name('ggr_bounce.csv').as_posix()}")
+    result = replication_tables(paths, ids, paths.processed, out, figure_path)
     for key, value in result.items():
         typer.echo(f"{key}: {value}")
-
-
-def _config_from_params(path: Path) -> RunConfig:
-    """A run config from a run's saved params, with the provenance keys dropped."""
-    import yaml
-
-    params = yaml.safe_load(path.read_text(encoding="utf-8"))
-    params.pop("data_profile", None)
-    params.pop("manifest_hash", None)
-    return RunConfig.model_validate(params)
 
 
 @evaluate_app.command("al-comparison")
@@ -345,33 +355,14 @@ def evaluate_al_comparison(
     runs: Annotated[
         str, typer.Option("--runs", help="Comma-separated run ids: A-L and pairs runs.")
     ],
-    out_dir: Annotated[Path, typer.Option("--out")] = Path("results/tables"),
-    figure_path: Annotated[Path, typer.Option("--figure")] = Path("reports/figures/al_vs_pairs"),
 ) -> None:
     """Avellaneda-Lee against simple pairs (FR-18, FR-19, AC-H-03)."""
-    import polars as pl
-
-    from statarb.evaluation import comparison
+    from statarb.reports.study import Paths, al_tables
 
     settings = get_settings()
-    loaded = [
-        comparison.read_run(settings.results_dir / "runs", rid.strip())
-        for rid in runs.split(",")
-        if rid.strip()
-    ]
-    out_dir.mkdir(parents=True, exist_ok=True)
-    summary = comparison.summary(loaded)
-    summary.write_csv(out_dir / "al_vs_pairs.csv", float_precision=6)
-    yearly = comparison.by_year(loaded)
-    yearly.write_csv(out_dir / "al_vs_pairs_by_year.csv", float_precision=6)
-    comparison.differences(loaded).write_csv(
-        out_dir / "al_vs_pairs_sharpe_diff.csv", float_precision=6
-    )
-    comparison.against_paper(loaded, pl.read_csv(comparison.TARGETS)).write_csv(
-        out_dir / "al_vs_paper.csv", float_precision=6
-    )
-    comparison.figure(yearly, figure_path)
-    typer.echo(f"wrote al_vs_pairs*.csv and al_vs_paper.csv to {out_dir.as_posix()}")
+    paths = Paths(settings.results_dir, settings.data_dir / "processed", settings.data_dir / "raw")
+    al_tables(paths, [rid.strip() for rid in runs.split(",") if rid.strip()])
+    typer.echo(f"wrote al_vs_pairs*.csv and al_vs_paper.csv to {paths.tables.as_posix()}")
 
 
 def _specs(runs: str) -> list[str]:

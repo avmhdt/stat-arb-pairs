@@ -183,7 +183,14 @@ def crowding_tables(
     tables.mkdir(parents=True, exist_ok=True)
     out.write_csv(tables / "crowding.csv", float_precision=6)
     pl.concat(rolls).write_csv(tables / "crowding_rolling.csv", float_precision=6)
-    crowd.overlap(runs).write_csv(tables / "crowding_overlap.csv", float_precision=6)
+    lap = crowd.overlap(runs)
+    lap.write_csv(tables / "crowding_overlap.csv", float_precision=6)
+    if lap.height:
+        lap.group_by("run_a", "run_b", maintain_order=True).agg(
+            pl.len().alias("years"),
+            pl.col("jaccard").mean().alias("mean_jaccard"),
+            pl.col("jaccard").max().alias("max_jaccard"),
+        ).write_csv(tables / "crowding_overlap_summary.csv", float_precision=6)
     if trends:
         trend = pl.concat(trends)
         trend.write_csv(tables / "crowding_trends.csv", float_precision=6)
@@ -298,4 +305,32 @@ def borrow_table(
     )
     tables.mkdir(parents=True, exist_ok=True)
     out.write_csv(tables / "borrow_assumed_vs_ibkr.csv", float_precision=6)
+    return out
+
+
+def kalman_table(runs_dir: Path, ids: list[str], tables: Path = TABLES) -> pl.DataFrame:
+    """``kalman_delta.csv``: the hedge model and Kalman delta against results (FR-12)."""
+    from statarb.evaluation.bootstrap import sharpe
+
+    rows = []
+    for rid in ids:
+        run = econ.read_run(runs_dir, rid)
+        model = run.params["model"]
+        ret = run.returns["ret"].to_numpy()
+        trips = run.roundtrips
+        rows.append(
+            {
+                "hedge": model["hedge"],  # type: ignore[index]
+                "delta": model["kalman"]["delta"] if model["hedge"] == "kalman" else None,  # type: ignore[index]
+                "sharpe": sharpe(ret),
+                "return_annual": float(ret.mean() * 252),
+                "trades": trips.height,
+                "mean_holding_days": econ._mean(trips["holding_days"]) if trips.height else None,
+                "mean_trade_return": econ._mean(trips["ret_on_slot"]) if trips.height else None,
+                "run_id": rid,
+            }
+        )
+    out = pl.DataFrame(rows, infer_schema_length=None)
+    tables.mkdir(parents=True, exist_ok=True)
+    out.write_csv(tables / "kalman_delta.csv", float_precision=6)
     return out

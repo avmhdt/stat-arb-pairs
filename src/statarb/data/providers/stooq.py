@@ -80,10 +80,22 @@ def read_daily(path: Path) -> pl.DataFrame:
     """Read one Stooq daily file into ``date, open, high, low, close, volume``.
 
     The header is checked exactly; ``<PER>`` must be ``D`` and ``<TIME>`` ``000000``.
-    Volumes may be fractional, so they are read as floats.
+    Volumes may be fractional, so they are read as floats. An empty file (the snapshot
+    holds some) is a ticker without data and gives no rows.
     """
     with path.open(encoding="utf-8") as handle:
         first = handle.readline().strip()
+    if not first:
+        return pl.DataFrame(
+            schema={
+                "date": pl.Date,
+                "open": pl.Float64,
+                "high": pl.Float64,
+                "low": pl.Float64,
+                "close": pl.Float64,
+                "volume": pl.Float64,
+            }
+        )
     if tuple(first.split(",")[: len(HEADER)]) != HEADER:
         raise StooqFormatError(f"{path.name}: unexpected header {first!r}")
     frame = pl.read_csv(

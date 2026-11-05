@@ -1,0 +1,5 @@
+run,period,first,last,months,mean_monthly,t_stat,sharpe_annual
+GGR distance gross (prototype),2010-2017,2011-01-01,2017-12-01,84,0.000007,0.015455,0.003601
+GGR distance gross (prototype),2018-2025,2018-01-01,2025-12-01,96,0.000555,0.852865,0.315364
+EG-Kalman net (prototype),2010-2017,2011-01-01,2017-12-01,84,-0.000002,-0.261137,-0.106235
+EG-Kalman net (prototype),2018-2025,2018-01-01,2025-12-01,96,-0.000073,-2.324986,-0.595716

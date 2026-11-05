@@ -126,13 +126,32 @@ Source: `results/tables/sizing_half_life.csv`, `reports/figures/sizing_half_life
 
 ## Trial count and deflated Sharpe (AC-H-10)
 
-Source: `results/tables/deflated_sharpe.csv` (`uv run statarb evaluate deflated-sharpe`); N counts every trial-log row of the family, failed, aborted and superseded runs included. The implementation matches backtest-overfitting-lab's `deflated_sharpe_ratio` to 1e-9 (`tests/unit/test_economics.py`).
+Source: `results/tables/deflated_sharpe.csv` (`uv run statarb evaluate deflated-sharpe`, rebuilt by `statarb report`); N counts every trial-log row of the family, failed, aborted, superseded, reproduction and prototype runs included (82 in all on 2026-11-05). The implementation matches backtest-overfitting-lab's `deflated_sharpe_ratio` to 1e-9 (`tests/unit/test_economics.py`).
 
 | Family | Trials | Headline Sharpe | PSR vs 0 | SR0 (annual) | DSR |
 |---|---|---|---|---|---|
-| pairs_distance | 18 | -2.01 | 0.00 | 3.38 | 0.00 |
-| pairs_coint | 17 | -0.33 | 0.04 | 0.50 | 0.00 |
-| al_pca | 6 | -7.95 | 0.00 | 6.24 | 0.00 |
-| al_etf | 6 | -4.21 | 0.00 | 3.42 | 0.00 |
+| pairs_distance | 33 | -2.01 | 0.00 | 3.75 | 0.00 |
+| pairs_coint | 31 | -0.33 | 0.04 | 0.64 | 0.00 |
+| al_pca | 9 | -7.95 | 0.00 | 6.76 | 0.00 |
+| al_etf | 9 | -4.21 | 0.00 | 3.70 | 0.00 |
 
 Headline runs are net of this project's costs with the one-day lag. None has a positive Sharpe, so deflation changes no conclusion; the expected maximum of the trials is large because the families mix gross and net runs.
+
+## Kalman delta and the static hedge (M7)
+
+Source: `results/tables/kalman_delta.csv`. The cointegration headline on identical selections with four hedges.
+
+| Hedge | Sharpe | Trades | Mean holding days | Mean trade |
+|---|---|---|---|---|
+| Static formation OLS | -1.42 | 1,261 | 8.3 | -1.03% |
+| Kalman, delta 1e-5 | -0.43 | 614 | 7.3 | -0.59% |
+| Kalman, delta 1e-4 (spec) | -0.33 | 190 | 6.0 | -0.95% |
+| Kalman, delta 1e-3 | -0.42 | 35 | 4.6 | -2.75% |
+
+A larger delta lets beta absorb more of the spread, so z reaches 2 less often and trades fall from 1,261 (static) to 35. Fewer trades lose less in total, but no setting makes money; the spec's delta is kept rather than the best of four chosen on the test data.
+
+## Reproduction (AC-W-11)
+
+`uv run statarb reproduce --profile headline` on 2026-11-04 downloaded nothing, kept the build (its manifest matched), passed DQ, reran all 28 study runs in 2 h 1 min with 3 workers and rebuilt every table. Each rerun's daily returns are identical, column for column, to the run it replaced, including runs first made in M4 and M5 under earlier engine code; only run ids changed in the tables. A second call with `--reuse` reused those 28 and added the three hedge runs above.
+
+The prototype profile (Stooq, survivorship-biased, 2010-2025, `results/tables/prototype/`) was reproduced twice, with 3 workers and with 1: identical `returns.parquet` sha256 for both study runs.

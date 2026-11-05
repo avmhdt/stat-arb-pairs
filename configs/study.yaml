@@ -1,0 +1,68 @@
+# Every run the research memo cites, by name, and the tables built from them (FR-29).
+#
+# `statarb reproduce` runs each entry (`statarb run --config <config> --set <set>...`);
+# `statarb report` finds, for each name, the newest complete run in results/trial_log.csv
+# with the same resolved config, data profile and data manifest, and rebuilds every table
+# and figure from those runs. results/tables/study_runs.csv records which run each name
+# resolved to.
+
+runs:
+  # GGR (2006) Table 1 portfolios, 1998-2002 overlap, gross (M4, AC-H-01).
+  ggr_top5_nowait: {config: configs/ggr_distance.yaml, set: [selection.top_k=5, selection.rank_from=1, windows.execution_lag_days=0]}
+  ggr_top5_wait: {config: configs/ggr_distance.yaml, set: [selection.top_k=5, selection.rank_from=1, windows.execution_lag_days=1]}
+  ggr_top20_nowait: {config: configs/ggr_distance.yaml, set: [selection.top_k=20, selection.rank_from=1, windows.execution_lag_days=0]}
+  ggr_top20_wait: {config: configs/ggr_distance.yaml, set: [selection.top_k=20, selection.rank_from=1, windows.execution_lag_days=1]}
+  ggr_101_120_nowait: {config: configs/ggr_distance.yaml, set: [selection.top_k=20, selection.rank_from=101, windows.execution_lag_days=0]}
+  ggr_101_120_wait: {config: configs/ggr_distance.yaml, set: [selection.top_k=20, selection.rank_from=101, windows.execution_lag_days=1]}
+
+  # Avellaneda-Lee (M5, AC-H-03): A-L's flat 5 bp (one-day lag and same day) and the model.
+  al_pca_flat5: {config: configs/al_pca.yaml, set: [costs.commission_bps=0.0, costs.half_spread.model=flat, costs.half_spread.flat_bps=5.0, costs.impact.model=none, costs.borrow.multiplier=0.0]}
+  al_pca_flat5_same_day: {config: configs/al_pca.yaml, set: [costs.commission_bps=0.0, costs.half_spread.model=flat, costs.half_spread.flat_bps=5.0, costs.impact.model=none, costs.borrow.multiplier=0.0, windows.execution_lag_days=0]}
+  al_pca_model: {config: configs/al_pca.yaml, set: [costs.commission_bps=1.0, costs.half_spread.model=quotes_then_corwin_schultz, costs.impact.model=sqrt, costs.borrow.multiplier=1.0]}
+  al_etf_flat5: {config: configs/al_etf.yaml, set: [costs.commission_bps=0.0, costs.half_spread.model=flat, costs.half_spread.flat_bps=5.0, costs.impact.model=none, costs.borrow.multiplier=0.0]}
+  al_etf_flat5_same_day: {config: configs/al_etf.yaml, set: [costs.commission_bps=0.0, costs.half_spread.model=flat, costs.half_spread.flat_bps=5.0, costs.impact.model=none, costs.borrow.multiplier=0.0, windows.execution_lag_days=0]}
+  al_etf_model: {config: configs/al_etf.yaml, set: [costs.commission_bps=1.0, costs.half_spread.model=quotes_then_corwin_schultz, costs.impact.model=sqrt, costs.borrow.multiplier=1.0]}
+
+  # Simple pairs on the A-L universe (market cap at least USD 1bn), 1999-2025.
+  al_universe_distance_flat5: {config: configs/ggr_distance.yaml, set: [costs.commission_bps=0.0, costs.half_spread.model=flat, costs.half_spread.flat_bps=5.0, costs.impact.model=none, costs.borrow.multiplier=0.0, data.end=2025-12-31, universe.min_mktcap_usd=1.0e9, universe.top_n=null]}
+  al_universe_distance_model: {config: configs/ggr_distance.yaml, set: [costs.commission_bps=1.0, costs.half_spread.model=quotes_then_corwin_schultz, costs.impact.model=sqrt, costs.borrow.multiplier=1.0, data.end=2025-12-31, universe.min_mktcap_usd=1.0e9, universe.top_n=null]}
+  al_universe_coint_flat5: {config: configs/coint_eg_kalman.yaml, set: [costs.commission_bps=0.0, costs.half_spread.model=flat, costs.half_spread.flat_bps=5.0, costs.impact.model=none, costs.borrow.multiplier=0.0, data.end=2025-12-31, universe.min_mktcap_usd=1.0e9, universe.top_n=null]}
+  al_universe_coint_model: {config: configs/coint_eg_kalman.yaml, set: [costs.commission_bps=1.0, costs.half_spread.model=quotes_then_corwin_schultz, costs.impact.model=sqrt, costs.borrow.multiplier=1.0, data.end=2025-12-31, universe.min_mktcap_usd=1.0e9, universe.top_n=null]}
+
+  # Cointegration headline at the project's costs (M6): baseline, survivors only, break
+  # policies and sizing schemes.
+  coint_baseline: {config: configs/coint_eg_kalman.yaml, set: []}
+  coint_survivors: {config: configs/coint_eg_kalman.yaml, set: [universe.survivors_only=true]}
+  coint_hold: {config: configs/coint_eg_kalman.yaml, set: [rules.break_policy=hold]}
+  coint_close_on_break: {config: configs/coint_eg_kalman.yaml, set: [rules.break_policy=close_on_break]}
+  coint_close_and_blacklist: {config: configs/coint_eg_kalman.yaml, set: [rules.break_policy=close_and_blacklist]}
+  coint_inverse_half_life: {config: configs/coint_eg_kalman.yaml, set: [sizing.scheme=inverse_half_life]}
+  coint_vol_target: {config: configs/coint_eg_kalman.yaml, set: [sizing.scheme=vol_target]}
+
+  # The hedge (M7, interview question on delta and rolling OLS): static formation OLS and
+  # the Kalman filter an order of magnitude either side of the spec's delta = 1e-4.
+  coint_static_hedge: {config: configs/coint_eg_kalman.yaml, set: [model.hedge=static]}
+  coint_delta_1e-5: {config: configs/coint_eg_kalman.yaml, set: [model.kalman.delta=1.0e-5]}
+  coint_delta_1e-3: {config: configs/coint_eg_kalman.yaml, set: [model.kalman.delta=1.0e-3]}
+
+  # GGR distance over 1998-2025 (M6): gross, survivors only, and at the project's costs with
+  # each sizing scheme.
+  ggr_gross: {config: configs/ggr_distance.yaml, set: [data.end=2025-12-31]}
+  ggr_survivors: {config: configs/ggr_distance.yaml, set: [data.end=2025-12-31, universe.survivors_only=true]}
+  ggr_costs: {config: configs/ggr_distance.yaml, set: [data.end=2025-12-31, costs.commission_bps=1.0, costs.half_spread.model=quotes_then_corwin_schultz, costs.impact.model=sqrt, costs.borrow.multiplier=1.0]}
+  ggr_costs_inverse_half_life: {config: configs/ggr_distance.yaml, set: [data.end=2025-12-31, costs.commission_bps=1.0, costs.half_spread.model=quotes_then_corwin_schultz, costs.impact.model=sqrt, costs.borrow.multiplier=1.0, sizing.scheme=inverse_half_life]}
+  ggr_costs_vol_target: {config: configs/ggr_distance.yaml, set: [data.end=2025-12-31, costs.commission_bps=1.0, costs.half_spread.model=quotes_then_corwin_schultz, costs.impact.model=sqrt, costs.borrow.multiplier=1.0, sizing.scheme=vol_target]}
+
+tables:
+  fdr: coint_baseline
+  replication: [ggr_top5_nowait, ggr_top5_wait, ggr_top20_nowait, ggr_top20_wait, ggr_101_120_nowait, ggr_101_120_wait]
+  al_comparison: [al_pca_flat5, al_pca_model, al_pca_flat5_same_day, al_etf_flat5, al_etf_model, al_etf_flat5_same_day, al_universe_distance_flat5, al_universe_distance_model, al_universe_coint_flat5, al_universe_coint_model]
+  decay: {GGR distance gross: ggr_gross, EG-Kalman net: coint_baseline}
+  persistence: {distance: ggr_gross, cointegration: coint_baseline}
+  economics: {GGR distance: ggr_costs, EG-Kalman: coint_baseline, A-L PCA: al_pca_model, A-L ETF: al_etf_model}
+  policies: [coint_baseline, coint_hold, coint_close_on_break, coint_close_and_blacklist]
+  sizing: [coint_baseline, coint_inverse_half_life, coint_vol_target, ggr_costs, ggr_costs_inverse_half_life, ggr_costs_vol_target]
+  deflated_sharpe: {pairs_distance: ggr_costs, pairs_coint: coint_baseline, al_pca: al_pca_model, al_etf: al_etf_model}
+  survivorship: [[coint_baseline, coint_survivors], [ggr_gross, ggr_survivors]]
+  kalman: [coint_static_hedge, coint_delta_1e-5, coint_baseline, coint_delta_1e-3]
+  example_pair: coint_baseline

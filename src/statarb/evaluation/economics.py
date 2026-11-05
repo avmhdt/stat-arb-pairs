@@ -216,6 +216,7 @@ def break_even(
                     "ci_low": float(np.quantile(boot, 0.025)),
                     "ci_high": float(np.quantile(boot, 0.975)),
                     "modelled_bps": modelled,
+                    "modelled_over_break_even": modelled / point if point > 0 else math.nan,
                     "turnover_annual": float(turn.mean() * 252),
                 }
             )

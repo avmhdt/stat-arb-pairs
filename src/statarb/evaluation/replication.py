@@ -167,10 +167,9 @@ def figure(table: pl.DataFrame, path: Path) -> None:
     ax.set_title("GGR replication (partial: 1998-2002 overlap only, gross of costs)")
     ax.legend(fontsize=8)
     fig.tight_layout()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(path.with_suffix(".png"), dpi=300)
-    fig.savefig(path.with_suffix(".svg"))
-    plt.close(fig)
+    from statarb.reports.figures import save
+
+    save(fig, path)
 
 
 def pair_volatility(runs: Path, run: GgrRun, data: MarketData) -> dict[str, float]:
