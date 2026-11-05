@@ -74,12 +74,12 @@ Correlation with the short-term reversal factor is modest: 0.27 for GGR, 0.19 fo
 
 ### Trials and deflated Sharpe
 
-The trial log holds 78 backtests: 31 distance, 29 cointegration and 9 for each A-L variant, failed, aborted and superseded runs included (`uv run statarb trials count`). No headline strategy has a positive Sharpe ratio after costs, so deflation changes no conclusion: the deflated Sharpe ratio is 0.00 for all four (`deflated_sharpe.csv`). For scale, the expected best Sharpe of 29 skill-free cointegration trials with the observed spread is 0.65.
+The trial log holds 82 backtests: 33 distance, 31 cointegration and 9 for each A-L variant, failed, aborted, superseded, reproduction and prototype runs included (`uv run statarb trials count`). No headline strategy has a positive Sharpe ratio after costs, so deflation changes no conclusion: the deflated Sharpe ratio is 0.00 for all four (`deflated_sharpe.csv`). For scale, the expected best Sharpe of 31 skill-free cointegration trials with the observed spread is 0.64.
 
 | Family (headline run, net) | Trials | Sharpe | PSR vs 0 | DSR |
 |---|---|---|---|---|
-| GGR distance | 31 | -2.01 | 0.00 | 0.00 |
-| EG-Kalman cointegration | 29 | -0.33 | 0.04 | 0.00 |
+| GGR distance | 33 | -2.01 | 0.00 | 0.00 |
+| EG-Kalman cointegration | 31 | -0.33 | 0.04 | 0.00 |
 | A-L PCA | 9 | -7.95 | 0.00 | 0.00 |
 | A-L ETF | 9 | -4.21 | 0.00 | 0.00 |
 
@@ -124,7 +124,7 @@ uv run statarb reproduce --profile prototype
 
 ### Benchmarks
 
-On an Intel Core i9-14900K (32 logical CPUs), 128 GB RAM, Windows 11, data on a SATA hard disk, with other recorders running (`docs/hardware.md`, `reports/benchmarks.json`, `reports/run_times.csv`):
+On an Intel Core i9-14900K (32 logical CPUs), 128 GB RAM, Windows 11, data on a SATA hard disk, with other recorders running (`docs/hardware.md`, `reports/benchmarks.json`, `results/run_times.csv`):
 
 | Task | Target | Measured |
 |---|---|---|

@@ -30,3 +30,7 @@ ggr_costs_vol_target,5c2b9ace-5c44-4be1-83fe-b628bb24c856,3,659.5,headline
 coint_static_hedge,0de3ef77-e573-4969-a1a9-ae3e6926b955,3,188.6,headline
 coint_delta_1e-5,24badb45-75cd-4a2e-93aa-9be9851e54d5,3,208.3,headline
 coint_delta_1e-3,93801a31-eb70-4830-be5e-a627ad58d466,3,191.7,headline
+proto_distance,81c79098-967b-446f-8304-21e94d0d0582,3,41.4,prototype
+proto_coint,885cc16a-9cf3-4229-a117-116f0b09084b,3,103.9,prototype
+proto_distance,9babc922-9af2-458a-8c50-c392cfa1c287,1,107.9,prototype
+proto_coint,7c786bb2-df4b-41b8-88c2-88ef75ddfe28,1,330.4,prototype

@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import shutil
 from pathlib import Path
 
@@ -140,10 +139,47 @@ def test_the_committed_study_is_valid() -> None:
 
 @pytest.mark.slow
 @pytest.mark.data
-def test_reproduce_prototype_twice_is_identical(tmp_path: Path) -> None:
-    if not os.environ.get("STOOQ_DIR"):
+def test_reproduce_prototype_twice_is_identical(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """On the local Stooq build: a small study reproduced twice, 2 then 1 workers."""
+    from statarb import reproduce
+
+    monkeypatch.setattr(reproduce, "TIMINGS", tmp_path / "run_times.csv")
+    shutil.copytree(REPO / "configs", tmp_path / "configs")
+    # The autouse fixture hides the developer's .env; this data test reads it on purpose.
+    settings = Settings(_env_file=REPO / ".env")
+    if not settings.data_dir.is_absolute():
+        settings = settings.model_copy(update={"statarb_data_dir": str(REPO / settings.data_dir)})
+    if settings.stooq_dir is None:
         pytest.skip("needs the Stooq snapshot (STOOQ_DIR)")
-    pytest.skip("run by hand: uv run statarb reproduce --profile prototype (hours)")
+    local = reproduce.profile_settings(settings, "prototype")
+    if not (local.data_dir / "processed" / "build_info.json").exists():
+        pytest.skip("run `statarb reproduce --profile prototype` once first")
+    sets = [
+        "run.data_profile=prototype",
+        "data.provider=free",
+        "data.start=2022-01-01",
+        "data.end=2024-12-31",
+        "universe.rank_by=dollar_volume",
+    ]
+    study = tmp_path / "study.yaml"
+    study.write_text(
+        yaml.safe_dump(
+            {
+                "runs": {"small": {"config": "configs/coint_eg_kalman.yaml", "set": sets}},
+                "tables": {},
+            }
+        ),
+        encoding="utf-8",
+    )
+    results = settings.model_copy(update={"statarb_results_dir": tmp_path / "results"})
+    shas = []
+    for workers in (2, 1):
+        reproduce.reproduce_all(results, "prototype", study, workers, False, echo=lambda s: None)
+        run_id = (tmp_path / "results" / "trial_log.csv").read_text().splitlines()[-1].split(",")[0]
+        shas.append(_sha(tmp_path / "results" / "runs" / run_id / "returns.parquet"))
+    assert shas[0] == shas[1]
 
 
 def test_reproduce_orchestrates_every_step(
@@ -199,7 +235,7 @@ def test_reproduce_orchestrates_every_step(
     assert calls == ["ingest_prices", "ingest_etf", "ingest_sic", "ingest_borrow", "ingest_french"]
     assert lines == ["report: 1 study runs resolved; tables and figures rebuilt"]
     assert any(line.startswith("run small: ") for line in echoed)
-    timings = pl.read_csv(tmp_path / "reports" / "run_times.csv")
+    timings = pl.read_csv(tmp_path / "results" / "run_times.csv")
     assert timings["name"].to_list() == ["small"]
     echoed.clear()
     reproduce.reproduce_all(settings, "prototype", path, 1, True, echo=echoed.append)

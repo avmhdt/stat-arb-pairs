@@ -24,7 +24,7 @@ STUDIES = {
     "headline": Path("configs") / "study.yaml",
     "prototype": Path("configs") / "study_prototype.yaml",
 }
-TIMINGS = Path("reports") / "run_times.csv"
+TIMINGS = Path("results") / "run_times.csv"
 
 
 class ReproduceError(RuntimeError):
@@ -88,7 +88,7 @@ def reproduce_all(
     reuse: bool,
     echo: Callable[[str], None] = print,
 ) -> list[str]:
-    """Run every step; returns the summary lines. Timings go to ``reports/run_times.csv``."""
+    """Run every step; returns the summary lines. Timings go to ``results/run_times.csv``."""
     from statarb.reports.study import build_all, paths_for
     from statarb.study import StudyError, find_run, load_study
     from statarb.trading.backtest import run_backtest

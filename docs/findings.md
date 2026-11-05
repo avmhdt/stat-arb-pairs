@@ -126,12 +126,12 @@ Source: `results/tables/sizing_half_life.csv`, `reports/figures/sizing_half_life
 
 ## Trial count and deflated Sharpe (AC-H-10)
 
-Source: `results/tables/deflated_sharpe.csv` (`uv run statarb evaluate deflated-sharpe`, rebuilt by `statarb report`); N counts every trial-log row of the family, failed, aborted, superseded and reproduction runs included (78 in all on 2026-11-04). The implementation matches backtest-overfitting-lab's `deflated_sharpe_ratio` to 1e-9 (`tests/unit/test_economics.py`).
+Source: `results/tables/deflated_sharpe.csv` (`uv run statarb evaluate deflated-sharpe`, rebuilt by `statarb report`); N counts every trial-log row of the family, failed, aborted, superseded, reproduction and prototype runs included (82 in all on 2026-11-05). The implementation matches backtest-overfitting-lab's `deflated_sharpe_ratio` to 1e-9 (`tests/unit/test_economics.py`).
 
 | Family | Trials | Headline Sharpe | PSR vs 0 | SR0 (annual) | DSR |
 |---|---|---|---|---|---|
-| pairs_distance | 31 | -2.01 | 0.00 | 3.83 | 0.00 |
-| pairs_coint | 29 | -0.33 | 0.04 | 0.65 | 0.00 |
+| pairs_distance | 33 | -2.01 | 0.00 | 3.75 | 0.00 |
+| pairs_coint | 31 | -0.33 | 0.04 | 0.64 | 0.00 |
 | al_pca | 9 | -7.95 | 0.00 | 6.76 | 0.00 |
 | al_etf | 9 | -4.21 | 0.00 | 3.70 | 0.00 |
 
@@ -153,3 +153,5 @@ A larger delta lets beta absorb more of the spread, so z reaches 2 less often an
 ## Reproduction (AC-W-11)
 
 `uv run statarb reproduce --profile headline` on 2026-11-04 downloaded nothing, kept the build (its manifest matched), passed DQ, reran all 28 study runs in 2 h 1 min with 3 workers and rebuilt every table. Each rerun's daily returns are identical, column for column, to the run it replaced, including runs first made in M4 and M5 under earlier engine code; only run ids changed in the tables. A second call with `--reuse` reused those 28 and added the three hedge runs above.
+
+The prototype profile (Stooq, survivorship-biased, 2010-2025, `results/tables/prototype/`) was reproduced twice, with 3 workers and with 1: identical `returns.parquet` sha256 for both study runs.
